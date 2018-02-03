@@ -8,7 +8,7 @@ import (
 
 func NewGoProvider(conf *ProviderConfig) (Provider, error) {
 	return &GoProvider{
-		name: "ruby",
+		name: "go",
 	}, nil
 }
 

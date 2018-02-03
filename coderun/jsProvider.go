@@ -7,7 +7,7 @@ import (
 
 func NewJsProvider(conf *ProviderConfig) (Provider, error) {
 	return &JsProvider{
-		name: "ruby",
+		name: "js",
 	}, nil
 }
 

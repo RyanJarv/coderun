@@ -6,7 +6,7 @@ import (
 
 func NewBashProvider(conf *ProviderConfig) (Provider, error) {
 	return &BashProvider{
-		name: "ruby",
+		name: "bash",
 	}, nil
 }
 
