@@ -10,6 +10,9 @@ Running code in an isolated environment should be stupid easy
 * go
 * bash
 
+## Frameworks
+* rails
+
 ## Example
 ```
 % go run main.go -- test.rb 
