@@ -2,17 +2,23 @@ package coderun
 
 import (
 	"fmt"
+	"log"
 	"os"
+	"regexp"
+	"strings"
 )
 
-func NewJsProvider(conf *ProviderConfig) (Provider, error) {
-	return &JsProvider{
-		name: "js",
-	}, nil
+type JsProvider struct {
+	ProviderDefault
+	name string
 }
 
-type JsProvider struct {
-	name string
+func (p *JsProvider) RegisterOnCmd(cmd string, args ...string) bool {
+	match, err := regexp.MatchString(`^(([^ ]+/)?node(js)? .*|[\S]+\.js)$`, strings.Join(append([]string{cmd}, args...), " "))
+	if err != nil {
+		log.Fatal(err)
+	}
+	return match
 }
 
 func (p *JsProvider) Setup(r *RunEnvironment) {
@@ -24,5 +30,5 @@ func (p *JsProvider) Setup(r *RunEnvironment) {
 }
 
 func (p *JsProvider) Run(r *RunEnvironment) {
-	cmd("/usr/local/bin/docker", "run", "-t", "--rm", "--name", newImageName(), "-v", fmt.Sprintf("%s:/usr/src/myapp", r.Cwd), "-w", "/usr/src/myapp", "node", "node", r.FilePath)
+	cmd(append([]string{"/usr/local/bin/docker", "run", "-t", "--rm", "--name", newImageName(), "-v", fmt.Sprintf("%s:/usr/src/myapp", r.Cwd), "-w", "/usr/src/myapp", "node", "node", r.Cmd}, r.Args...)...)
 }

@@ -2,17 +2,23 @@ package coderun
 
 import (
 	"fmt"
+	"log"
 	"os"
+	"regexp"
+	"strings"
 )
 
-func NewPythonProvider(conf *ProviderConfig) (Provider, error) {
-	return &PythonProvider{
-		name: "python",
-	}, nil
+type PythonProvider struct {
+	ProviderDefault
+	name string
 }
 
-type PythonProvider struct {
-	name string
+func (p *PythonProvider) RegisterOnCmd(cmd string, args ...string) bool {
+	match, err := regexp.MatchString(`^(([^ ]+/)?python[0-9.]* .*|[\S]+\.py)$`, strings.Join(append([]string{cmd}, args...), " "))
+	if err != nil {
+		log.Fatal(err)
+	}
+	return match
 }
 
 func (p *PythonProvider) Setup(r *RunEnvironment) {
@@ -25,5 +31,6 @@ func (p *PythonProvider) Setup(r *RunEnvironment) {
 }
 
 func (p *PythonProvider) Run(r *RunEnvironment) {
-	cmd("/usr/local/bin/docker", "run", "-t", "--rm", "--name", newImageName(), "-v", fmt.Sprintf("%s:/usr/src/myapp", r.Cwd), "-w", "/usr/src/myapp", "python:3", "sh", "-c", fmt.Sprintf(". .coderun/venv/bin/activate && python %s", r.FilePath))
+	log.Printf("Args is: %s", r.Cmd)
+	dockerRun("python:3", 1234, "/usr/local/myapp", append([]string{".coderun/venv/bin/python", r.Cmd}, r.Args...)...)
 }

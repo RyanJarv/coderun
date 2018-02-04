@@ -1,10 +1,16 @@
 package coderun
 
 type ProviderConfig struct {
-	Extension string
+	Extension     string
+	Cmd           string
+	Args          []string
+	FullCmdString string
 }
 
 type RunEnvironment struct {
-	FilePath string
-	Cwd      string
+	Cwd           string
+	Cmd           string
+	Args          []string
+	ArgsString    string
+	FullCmdString string
 }

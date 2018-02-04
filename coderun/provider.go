@@ -4,49 +4,55 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"strings"
 )
 
+type ProviderDefault struct {
+}
+
+func (p *ProviderDefault) RegisterOnCmd(cmd string, args ...string) bool {
+	return false
+}
+
 type Provider interface {
+	RegisterOnCmd(cmd string, args ...string) bool
 	Setup(*RunEnvironment)
 	Run(*RunEnvironment)
 }
 
-type ProviderFactory func(conf *ProviderConfig) (Provider, error)
+var pathProviders = make(map[string]Provider)
 
-var providerFactories = make(map[string]ProviderFactory)
-
-func Register(name string, factory ProviderFactory) {
-	if factory == nil {
+func Register(name string, provider Provider) {
+	if provider == nil {
 		log.Panicf("Provider %s does not exist.", name)
 	}
-	_, registered := providerFactories[name]
+	_, registered := pathProviders[name]
 	if registered {
 		log.Fatalf("Provider %s already registered. Ignoring.", name)
 	}
-	providerFactories[name] = factory
+	pathProviders[name] = provider
 }
 
 func init() {
-	Register(".py", NewPythonProvider)
-	Register(".rb", NewRubyProvider)
-	Register(".go", NewGoProvider)
-	Register(".js", NewJsProvider)
-	Register(".sh", NewBashProvider)
+	Register("python", &PythonProvider{})
+	Register("ruby", &RubyProvider{})
+	Register("go", &GoProvider{})
+	Register("nodejs", &JsProvider{})
+	Register("bash", &BashProvider{})
+	Register("rails", &RailsProvider{})
 }
 
 func CreateProvider(c *ProviderConfig) (Provider, error) {
-	factory, ok := providerFactories[c.Extension]
-	if !ok {
-		// Factory has not been registered.
-		// Make a list of all available datastore factories for logging.
-		availableProviders := make([]string, len(providerFactories))
-		for k, _ := range providerFactories {
-			availableProviders = append(availableProviders, k)
+	var provider Provider
+	for _, p := range pathProviders {
+		if p.RegisterOnCmd(c.Cmd, c.Args...) {
+			provider = p
+			break
 		}
-		return nil, errors.New(fmt.Sprintf("Invalid run provider name. Must be one of: %s", strings.Join(availableProviders, ", ")))
+	}
+	if provider == nil {
+		return nil, errors.New(fmt.Sprintf("No providers found for this command"))
 	}
 
 	// Run the factory with the configuration.
-	return factory(c)
+	return provider, nil
 }

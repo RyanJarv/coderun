@@ -5,17 +5,19 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 
-	"./coderun"
+	"github.com/rggerst/coderun/coderun"
 )
 
 func main() {
 	flag.Parse()
-	var file = flag.Arg(0)
-	var ext = path.Ext(flag.Arg(0))
 
 	var config = &coderun.ProviderConfig{
-		Extension: ext,
+		Extension:     path.Ext(flag.Args()[0]),
+		Cmd:           flag.Args()[0],
+		Args:          flag.Args()[1:len(flag.Args())],
+		FullCmdString: strings.Join(flag.Args(), " "),
 	}
 
 	provider, err := coderun.CreateProvider(config)
@@ -29,8 +31,11 @@ func main() {
 	}
 
 	var runEnv = &coderun.RunEnvironment{
-		FilePath: file,
-		Cwd:      cwd,
+		Cwd:           cwd,
+		Cmd:           flag.Args()[0],
+		Args:          flag.Args()[1:len(flag.Args())],
+		ArgsString:    strings.Join(flag.Args()[1:len(flag.Args())], " "),
+		FullCmdString: strings.Join(flag.Args(), " "),
 	}
 	provider.Setup(runEnv)
 	provider.Run(runEnv)
