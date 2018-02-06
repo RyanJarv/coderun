@@ -1,5 +1,5 @@
-hash: 545d2c65a508a53f03852e42e92934048c9e49c4fec25de88b2b98c03a8927d8
-updated: 2018-02-04T00:35:47.523532389-06:00
+hash: 6d4ac904028026b4a9281ded0a62299955bcf41b22b644cc27f37f9567510d0f
+updated: 2018-02-05T21:19:55.737998811-06:00
 imports:
 - name: github.com/aws/aws-sdk-go
   version: 9ed0c8de252f04ac45a65358377103d5a1aa2d92
@@ -27,14 +27,68 @@ imports:
   - private/protocol/rest
   - private/protocol/xml/xmlutil
   - service/sts
+- name: github.com/docker/distribution
+  version: fea8bd51143307d3454703eadecbeeb778aa75e8
+  subpackages:
+  - digestset
+  - reference
+- name: github.com/docker/docker
+  version: 6e5c2d639f67ae70f54d9f2285f3261440b074aa
+  subpackages:
+  - api
+  - api/types
+  - api/types/blkiodev
+  - api/types/container
+  - api/types/events
+  - api/types/filters
+  - api/types/image
+  - api/types/mount
+  - api/types/network
+  - api/types/registry
+  - api/types/strslice
+  - api/types/swarm
+  - api/types/swarm/runtime
+  - api/types/time
+  - api/types/versions
+  - api/types/volume
+  - client
+- name: github.com/docker/go-connections
+  version: 46f8e421b7f319539ea3015c4bfb68c4aef70b83
+  subpackages:
+  - nat
+  - sockets
+  - tlsconfig
+- name: github.com/docker/go-units
+  version: d59758554a3d3911fa25c0269de1ebe2f1912c39
 - name: github.com/go-ini/ini
   version: c437d20015c2ab6454b7a66a13109ff0fb99e17a
+- name: github.com/gogo/protobuf
+  version: 1adfc126b41513cc696b209667c8656ea7aac67c
+  subpackages:
+  - proto
 - name: github.com/jmespath/go-jmespath
   version: 0b12d6b521d83fc7f755e7cfc1b1fbdd35a01a74
 - name: github.com/kr/pty
   version: 282ce0e5322c82529687d609ee670fac7c7d917c
-- name: github.com/moby/moby
-  version: 6e5c2d639f67ae70f54d9f2285f3261440b074aa
+- name: github.com/Microsoft/go-winio
+  version: 7da180ee92d8bd8bb8c37fc560e673e6557c392f
+- name: github.com/opencontainers/go-digest
+  version: 279bed98673dd5bef374d3b6e4b09e2af76183bf
+- name: github.com/opencontainers/image-spec
+  version: 577479e4dc273d3779f00c223c7e0dba4cd6b8b0
   subpackages:
-  - client
+  - specs-go
+  - specs-go/v1
+- name: github.com/pkg/errors
+  version: 30136e27e2ac8d167177e8a583aa4c3fea5be833
+- name: golang.org/x/net
+  version: 66aacef3dd8a676686c7ae3716979581e8b03c47
+  subpackages:
+  - context
+  - context/ctxhttp
+  - proxy
+- name: golang.org/x/sys
+  version: 5513e650ab47a692d3a036d49be8fa52ddd09b65
+  subpackages:
+  - windows
 testImports: []

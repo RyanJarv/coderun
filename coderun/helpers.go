@@ -3,6 +3,7 @@ package coderun
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,7 +13,14 @@ import (
 	"os/exec"
 	"os/signal"
 	"strconv"
+	"time"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/client"
+	"github.com/docker/go-connections/nat"
 	"github.com/kr/pty"
 )
 
@@ -38,26 +46,102 @@ func buildImageStep(source string, args ...string) string {
 	return image
 }
 
-func dockerPull(image string) {
-	cmd("/usr/local/bin/docker", "pull", image)
+func dockerPull(cli *client.Client, image string) {
+	log.Printf("Pulling image: %s", image)
+	_, err := cli.ImagePull(context.Background(), image, types.ImagePullOptions{})
+	if err != nil {
+		panic(err)
+	}
+	log.Printf("Done pulling image: %s", image)
 }
 
-func dockerRun(image string, port int, path string, args ...string) {
-	name := newImageName()
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
+type dockerRunConfig struct {
+	Client    *client.Client
+	Image     string
+	Port      int
+	Cmd       []string
+	SourceDir string
+	DestDir   string
+	Mounts    mount.Mount
+}
+
+func dockerRun(c dockerRunConfig) {
+	ctx := context.Background()
+	cli := c.Client
+	port := nat.Port(fmt.Sprintf("%v/tcp", c.Port))
+
+	var portBindings nat.PortMap
+	var exposedPorts nat.PortSet
+	if c.Port != 0 {
+		portBindings = nat.PortMap{port: []nat.PortBinding{{HostIP: "127.0.0.1", HostPort: strconv.Itoa(c.Port)}}}
+		exposedPorts = nat.PortSet{
+			port: struct{}{},
+		}
+	}
+
+	m := []mount.Mount{{Type: "bind", Source: c.SourceDir, Target: c.DestDir}}
+
+	log.Printf("Commands: %s", c.Cmd)
+	log.Printf("Bindings: %v", portBindings)
+	resp, err := cli.ContainerCreate(ctx, &container.Config{Image: c.Image, Cmd: c.Cmd, WorkingDir: c.DestDir, ExposedPorts: exposedPorts, Tty: true, OpenStdin: true, AttachStdin: true, AttachStdout: true, AttachStderr: true}, &container.HostConfig{Mounts: m, PortBindings: portBindings}, &network.NetworkingConfig{}, newImageName())
+	if err != nil {
+		panic(err)
+	}
+	log.Printf("Container ID: %s", resp.ID)
+	log.Printf("Container Warnings: %s", resp.Warnings)
+
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt)
 	go func() {
-		for sig := range c {
+		for sig := range ch {
 			log.Printf("Recieved %s, cleaning up", sig.String())
-			dockerStop(name)
+			c.Client.ContainerKill(context.Background(), resp.ID, "SIGTERM")
+			timeout := 2 * time.Second
+			c.Client.ContainerStop(context.Background(), resp.ID, &timeout)
+			cli.ContainerRemove(context.Background(), resp.ID, types.ContainerRemoveOptions{})
 		}
 	}()
-	p := strconv.Itoa(port)
-	cmd(append([]string{"/usr/local/bin/docker", "run", "-e", p, "-p", fmt.Sprintf("%s:%s", p, p), "-it", "--rm", "--name", name, "-v", fmt.Sprintf("%s:%s", cwd(), path), "-w", path, image}, args...)...)
+
+	var errStdout error
+
+	hijack, err := cli.ContainerAttach(ctx, resp.ID, types.ContainerAttachOptions{Stream: true, Stdin: true, Stdout: true, Stderr: true})
+	if err != nil {
+		panic(err)
+	}
+	defer hijack.Close()
+
+	go func() {
+		_, errStdout = io.Copy(os.Stdout, hijack.Reader)
+	}()
+
+	if errStdout != nil {
+		log.Fatal("failed to capture stdout or stderr\n")
+	}
+
+	if err := cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+		panic(err)
+	}
+
+	statusCh, errCh := cli.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
+	select {
+	case err := <-errCh:
+		if err != nil {
+			panic(err)
+		}
+	case <-statusCh:
+	}
+
+	cli.ContainerRemove(context.Background(), resp.ID, types.ContainerRemoveOptions{})
 }
 
 func dockerStop(name string) {
 	cmd("/usr/local/bin/docker", "stop", name) // Doesn't necessarily stop on it's own
+}
+
+type dockerStopConfig struct {
+	Client  *client.Client
+	ID      string
+	Timeout *time.Duration
 }
 
 func getImageName() string {

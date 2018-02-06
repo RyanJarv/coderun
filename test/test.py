@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-print("hello world")
+print("hello from python")
 
 import awscli
 print(dir(awscli))

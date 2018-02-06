@@ -22,7 +22,7 @@ func (p *PythonProvider) RegisterOnCmd(cmd string, args ...string) bool {
 }
 
 func (p *PythonProvider) Setup(r *RunEnvironment) {
-	cmd("/usr/local/bin/docker", "pull", "python:3")
+	dockerPull(r.DockerClient, "python:3")
 
 	if _, err := os.Stat("./requirements.txt"); err == nil {
 		cmd("/usr/local/bin/docker", "run", "-t", "--rm", "--name", newImageName(), "-v", fmt.Sprintf("%s:/usr/src/myapp", r.Cwd), "-w", "/usr/src/myapp", "python:3", "python", "-m", "venv", ".coderun/venv")
@@ -31,6 +31,6 @@ func (p *PythonProvider) Setup(r *RunEnvironment) {
 }
 
 func (p *PythonProvider) Run(r *RunEnvironment) {
-	log.Printf("Args is: %s", r.Cmd)
-	dockerRun("python:3", 1234, "/usr/local/myapp", append([]string{".coderun/venv/bin/python", r.Cmd}, r.Args...)...)
+	log.Printf("Args: %s", r.Cmd)
+	dockerRun(dockerRunConfig{Client: r.DockerClient, Image: "python:3", DestDir: "/usr/src/myapp", SourceDir: r.Cwd, Cmd: append([]string{".coderun/venv/bin/python"}, r.Cmd...)})
 }

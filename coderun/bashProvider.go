@@ -1,7 +1,6 @@
 package coderun
 
 import (
-	"fmt"
 	"log"
 	"regexp"
 	"strings"
@@ -21,9 +20,9 @@ func (p *BashProvider) RegisterOnCmd(cmd string, args ...string) bool {
 }
 
 func (p *BashProvider) Setup(r *RunEnvironment) {
-	cmd("/usr/local/bin/docker", "pull", "ubuntu")
+	dockerPull(r.DockerClient, "bash")
 }
 
 func (p *BashProvider) Run(r *RunEnvironment) {
-	cmd(append([]string{"/usr/local/bin/docker", "run", "-t", "--rm", "--name", newImageName(), "-v", fmt.Sprintf("%s:/usr/src/myapp", r.Cwd), "-w", "/usr/src/myapp", "ubuntu", "bash", r.Cmd}, r.Args...)...)
+	dockerRun(dockerRunConfig{Client: r.DockerClient, Image: "ubuntu", DestDir: "/usr/src/myapp", SourceDir: r.Cwd, Cmd: append([]string{"bash"}, r.Cmd...)})
 }

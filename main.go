@@ -7,6 +7,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/docker/docker/client"
 	"github.com/rggerst/coderun/coderun"
 )
 
@@ -30,10 +31,15 @@ func main() {
 		log.Fatal("Error getting current working directory")
 	}
 
+	cli, err := client.NewEnvClient()
+	if err != nil {
+		panic(err)
+	}
+
 	var runEnv = &coderun.RunEnvironment{
 		Cwd:           cwd,
-		Cmd:           flag.Args()[0],
-		Args:          flag.Args()[1:len(flag.Args())],
+		DockerClient:  cli,
+		Cmd:           flag.Args(),
 		ArgsString:    strings.Join(flag.Args()[1:len(flag.Args())], " "),
 		FullCmdString: strings.Join(flag.Args(), " "),
 	}

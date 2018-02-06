@@ -30,5 +30,5 @@ func (p *JsProvider) Setup(r *RunEnvironment) {
 }
 
 func (p *JsProvider) Run(r *RunEnvironment) {
-	cmd(append([]string{"/usr/local/bin/docker", "run", "-t", "--rm", "--name", newImageName(), "-v", fmt.Sprintf("%s:/usr/src/myapp", r.Cwd), "-w", "/usr/src/myapp", "node", "node", r.Cmd}, r.Args...)...)
+	dockerRun(dockerRunConfig{Client: r.DockerClient, Image: "node", DestDir: "/usr/src/myapp", SourceDir: r.Cwd, Cmd: append([]string{"node"}, r.Cmd...)})
 }

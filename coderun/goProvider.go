@@ -21,13 +21,13 @@ func (p *GoProvider) RegisterOnCmd(cmd string, args ...string) bool {
 }
 
 func (p *GoProvider) Setup(r *RunEnvironment) {
-	dockerPull("golang")
+	dockerPull(r.DockerClient, "golang")
 
 	if _, err := os.Stat("./glide.lock"); os.IsNotExist(err) {
-		dockerRun("golang", 1234, "/go/src/localhost/myapp", "sh", "-c", "curl https://glide.sh/get | sh && glide init --non-interactive && glide install")
+		dockerRun(dockerRunConfig{Client: r.DockerClient, Image: "golang", DestDir: "/go/src/localhost/myapp", SourceDir: r.Cwd, Cmd: []string{"sh", "-c", "curl https://glide.sh/get | sh && glide init --non-interactive && glide install"}})
 	}
 }
 
 func (p *GoProvider) Run(r *RunEnvironment) {
-	dockerRun("golang", 1234, "/go/src/localhost/myapp", append([]string{"go", "run", r.Cmd}, r.Args...)...)
+	dockerRun(dockerRunConfig{Client: r.DockerClient, Image: "golang", DestDir: "/go/src/localhost/myapp", SourceDir: r.Cwd, Cmd: []string{"go", "run"}})
 }

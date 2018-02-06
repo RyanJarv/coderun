@@ -1,5 +1,9 @@
 package coderun
 
+import (
+	"github.com/docker/docker/client"
+)
+
 type ProviderConfig struct {
 	Extension     string
 	Cmd           string
@@ -9,8 +13,8 @@ type ProviderConfig struct {
 
 type RunEnvironment struct {
 	Cwd           string
-	Cmd           string
-	Args          []string
+	DockerClient  *client.Client
+	Cmd           []string
 	ArgsString    string
 	FullCmdString string
 }
