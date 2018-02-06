@@ -1,0 +1,8 @@
+package: github.com/rggerst/coderun
+import:
+- package: github.com/aws/aws-sdk-go
+  subpackages:
+  - aws
+  - aws/endpoints
+  - aws/session
+- package: github.com/kr/pty
