@@ -12,9 +12,8 @@ type ProviderConfig struct {
 }
 
 type RunEnvironment struct {
-	Cwd           string
-	DockerClient  *client.Client
-	Cmd           []string
-	ArgsString    string
-	FullCmdString string
+	Cwd          string
+	CRDocker     *CRDocker
+	DockerClient *client.Client
+	Cmd          []string
 }

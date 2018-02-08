@@ -2,26 +2,26 @@ package coderun
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"log"
+
+	"github.com/docker/docker/client"
 )
 
-type ProviderDefault struct {
+var pathProviders = make(map[string]*Provider)
+
+type RegisterOnCmdFunc func(cmd ...string) bool
+type SetupFunc func(*RunEnvironment)
+type RunFunc func(*RunEnvironment)
+
+type Provider struct {
+	RegisterOnCmd RegisterOnCmdFunc
+	Setup         SetupFunc
+	Run           RunFunc
 }
 
-func (p *ProviderDefault) RegisterOnCmd(cmd string, args ...string) bool {
-	return false
-}
-
-type Provider interface {
-	RegisterOnCmd(cmd string, args ...string) bool
-	Setup(*RunEnvironment)
-	Run(*RunEnvironment)
-}
-
-var pathProviders = make(map[string]Provider)
-
-func Register(name string, provider Provider) {
+func Register(name string, provider *Provider) {
 	if provider == nil {
 		log.Panicf("Provider %s does not exist.", name)
 	}
@@ -33,18 +33,18 @@ func Register(name string, provider Provider) {
 }
 
 func init() {
-	Register("python", &PythonProvider{})
-	Register("ruby", &RubyProvider{})
-	Register("go", &GoProvider{})
-	Register("nodejs", &JsProvider{})
-	Register("bash", &BashProvider{})
-	Register("rails", &RailsProvider{})
+	Register("python", PythonProvider())
+	Register("ruby", RubyProvider())
+	Register("go", GoProvider())
+	Register("nodejs", JsProvider())
+	Register("bash", BashProvider())
+	Register("rails", RailsProvider())
 }
 
-func CreateProvider(c *ProviderConfig) (Provider, error) {
-	var provider Provider
+func GetProvider(c *ProviderConfig) (*Provider, error) {
+	var provider *Provider
 	for _, p := range pathProviders {
-		if p.RegisterOnCmd(c.Cmd, c.Args...) {
+		if p.RegisterOnCmd(append([]string{c.Cmd}, c.Args...)...) {
 			provider = p
 			break
 		}
@@ -53,6 +53,19 @@ func CreateProvider(c *ProviderConfig) (Provider, error) {
 		return nil, errors.New(fmt.Sprintf("No providers found for this command"))
 	}
 
-	// Run the factory with the configuration.
+	cli, err := client.NewEnvClient()
+	if err != nil {
+		panic(err)
+	}
+
+	runEnv := &RunEnvironment{
+		CRDocker:     &CRDocker{Client: cli},
+		DockerClient: cli,
+		Cmd:          flag.Args(),
+	}
+
+	provider.Setup(runEnv)
+	provider.Run(runEnv)
+
 	return provider, nil
 }
