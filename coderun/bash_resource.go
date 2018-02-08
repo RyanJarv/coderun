@@ -1,7 +1,7 @@
 package coderun
 
-func BashProvider() *Provider {
-	return &Provider{
+func BashResource() *Resource {
+	return &Resource{
 		RegisterOnCmd: bashRegisterOnCmd,
 		Setup:         bashSetup,
 		Run:           bashRun,
@@ -12,10 +12,10 @@ func bashRegisterOnCmd(cmd ...string) bool {
 	return MatchCommandOrExt(cmd, "bash", ".sh")
 }
 
-func bashSetup(r *RunEnvironment) {
-	r.CRDocker.Pull("bash")
+func bashSetup(r IRunEnvironment) {
+	r.(RunEnvironment).CRDocker.Pull("bash")
 }
 
-func bashRun(r *RunEnvironment) {
-	r.CRDocker.Run(dockerRunConfig{Image: "ubuntu", DestDir: "/usr/src/myapp", SourceDir: Cwd(), Cmd: append([]string{"bash"}, r.Cmd...)})
+func bashRun(r IRunEnvironment) {
+	r.(RunEnvironment).CRDocker.Run(dockerRunConfig{Image: "ubuntu", DestDir: "/usr/src/myapp", SourceDir: Cwd(), Cmd: append([]string{"bash"}, r.Cmd()...)})
 }

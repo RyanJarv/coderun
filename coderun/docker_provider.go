@@ -24,7 +24,7 @@ type CRDocker struct {
 	Client *client.Client
 }
 
-func (d *CRDocker) Pull(image string) {
+func (d CRDocker) Pull(image string) {
 	log.Printf("Pulling image: %s", image)
 	_, err := d.Client.ImagePull(context.Background(), image, types.ImagePullOptions{})
 	if err != nil {
@@ -33,7 +33,7 @@ func (d *CRDocker) Pull(image string) {
 	log.Printf("Done pulling image: %s", image)
 }
 
-func (d *CRDocker) Run(c dockerRunConfig) {
+func (d CRDocker) Run(c dockerRunConfig) {
 	ctx := context.Background()
 	port := nat.Port(fmt.Sprintf("%v/tcp", c.Port))
 
@@ -101,7 +101,7 @@ func (d *CRDocker) Run(c dockerRunConfig) {
 	d.Client.ContainerRemove(context.Background(), resp.ID, types.ContainerRemoveOptions{})
 }
 
-func (d *CRDocker) buildImageStep(source string, args ...string) string {
+func (d CRDocker) buildImageStep(source string, args ...string) string {
 	var image = d.newImageName()
 	var preimage = d.newImageName()
 	//append so go will let us pass to a function with a single vervadic parameter
@@ -111,11 +111,11 @@ func (d *CRDocker) buildImageStep(source string, args ...string) string {
 	return image
 }
 
-func (d *CRDocker) Stop(name string) {
+func (d CRDocker) Stop(name string) {
 	Cmd("/usr/local/bin/docker", "stop", name) // Doesn't necessarily stop on it's own
 }
 
-func (d *CRDocker) getImageName() string {
+func (d CRDocker) getImageName() string {
 	image, err := ioutil.ReadFile(".coderun/dockerimage")
 	if os.IsNotExist(err) {
 		return ""
@@ -125,7 +125,7 @@ func (d *CRDocker) getImageName() string {
 	return string(image)
 }
 
-func (d *CRDocker) setImageName(image string) {
+func (d CRDocker) setImageName(image string) {
 	CreateCodeRunDir()
 	err := ioutil.WriteFile(".coderun/dockerimage", []byte(image), 0644)
 	if err != nil {
@@ -133,7 +133,7 @@ func (d *CRDocker) setImageName(image string) {
 	}
 }
 
-func (d *CRDocker) getOrBuildImage(source string, cmds ...[]string) string {
+func (d CRDocker) getOrBuildImage(source string, cmds ...[]string) string {
 	var image string
 	if image = d.getImageName(); image == "" {
 		for _, step := range cmds {
@@ -145,11 +145,11 @@ func (d *CRDocker) getOrBuildImage(source string, cmds ...[]string) string {
 	return image
 }
 
-func (d *CRDocker) newImageName() string {
+func (d CRDocker) newImageName() string {
 	return fmt.Sprintf("coderun-%s", d.randString())
 }
 
-func (d *CRDocker) randString() string {
+func (d CRDocker) randString() string {
 	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
 	b := make([]rune, 15)
 	for i := range b {

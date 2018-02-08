@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-func JsProvider() *Provider {
-	return &Provider{
+func JsResource() *Resource {
+	return &Resource{
 		RegisterOnCmd: jsRegisterOnCmd,
 		Setup:         jsSetup,
 		Run:           jsRun,
@@ -24,14 +24,14 @@ func jsRegisterOnCmd(cmd ...string) bool {
 	return match
 }
 
-func jsSetup(r *RunEnvironment) {
+func jsSetup(r IRunEnvironment) {
 	Cmd("/usr/local/bin/docker", "pull", "node")
 
 	if _, err := os.Stat("./package-lock.json"); os.IsNotExist(err) {
-		Cmd("/usr/local/bin/docker", "run", "-t", "--rm", "--name", r.CRDocker.newImageName(), "-v", fmt.Sprintf("%s:/usr/src/myapp", Cwd()), "-w", "/usr/src/myapp", "node", "npm", "install")
+		Cmd("/usr/local/bin/docker", "run", "-t", "--rm", "--name", r.(RunEnvironment).CRDocker.(CRDocker).newImageName(), "-v", fmt.Sprintf("%s:/usr/src/myapp", Cwd()), "-w", "/usr/src/myapp", "node", "npm", "install")
 	}
 }
 
-func jsRun(r *RunEnvironment) {
-	r.CRDocker.Run(dockerRunConfig{Image: "node", DestDir: "/usr/src/myapp", SourceDir: Cwd(), Cmd: append([]string{"node"}, r.Cmd...)})
+func jsRun(r IRunEnvironment) {
+	r.(RunEnvironment).CRDocker.(CRDocker).Run(dockerRunConfig{Image: "node", DestDir: "/usr/src/myapp", SourceDir: Cwd(), Cmd: append([]string{"node"}, r.Cmd()...)})
 }

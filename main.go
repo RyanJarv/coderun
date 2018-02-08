@@ -10,11 +10,11 @@ import (
 func main() {
 	flag.Parse()
 
-	var config = &coderun.ProviderConfig{
+	var config = &coderun.ResourceConfig{
 		Cmd: flag.Args()[0],
 	}
 
-	_, err := coderun.GetProvider(config)
+	_, err := coderun.GetResource(config)
 	if err != nil {
 		log.Fatal(err)
 	}

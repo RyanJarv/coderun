@@ -9,41 +9,39 @@ import (
 	"github.com/docker/docker/client"
 )
 
-var pathProviders = make(map[string]*Provider)
+var pathResources = make(map[string]*Resource)
 
-type RegisterOnCmdFunc func(cmd ...string) bool
-type SetupFunc func(*RunEnvironment)
-type RunFunc func(*RunEnvironment)
-
-type Provider struct {
-	RegisterOnCmd RegisterOnCmdFunc
-	Setup         SetupFunc
-	Run           RunFunc
-}
-
-func Register(name string, provider *Provider) {
+func Register(name string, provider *Resource) {
 	if provider == nil {
-		log.Panicf("Provider %s does not exist.", name)
+		log.Panicf("Resource %s does not exist.", name)
 	}
-	_, registered := pathProviders[name]
+	_, registered := pathResources[name]
 	if registered {
-		log.Fatalf("Provider %s already registered. Ignoring.", name)
+		log.Fatalf("Resource %s already registered. Ignoring.", name)
 	}
-	pathProviders[name] = provider
+	pathResources[name] = provider
 }
 
 func init() {
-	Register("python", PythonProvider())
-	Register("ruby", RubyProvider())
-	Register("go", GoProvider())
-	Register("nodejs", JsProvider())
-	Register("bash", BashProvider())
-	Register("rails", RailsProvider())
+	Register("python", PythonResource())
+	Register("ruby", RubyResource())
+	Register("go", GoResource())
+	Register("nodejs", JsResource())
+	Register("bash", BashResource())
+	Register("rails", RailsResource())
 }
 
-func GetProvider(c *ProviderConfig) (*Provider, error) {
-	var provider *Provider
-	for _, p := range pathProviders {
+// func CreateRunEnvironment(jVj)(
+// 	runEnv := &RunEnvironment{
+// 		CRDocker:     &CRDocker{Client: cli},
+// 		DockerClient: cli,
+// 		Cmd:          flag.Args(),
+// 	}
+// )
+
+func GetResource(c *ResourceConfig) (*Resource, error) {
+	var provider *Resource
+	for _, p := range pathResources {
 		if p.RegisterOnCmd(append([]string{c.Cmd}, c.Args...)...) {
 			provider = p
 			break
@@ -61,7 +59,7 @@ func GetProvider(c *ProviderConfig) (*Provider, error) {
 	runEnv := &RunEnvironment{
 		CRDocker:     &CRDocker{Client: cli},
 		DockerClient: cli,
-		Cmd:          flag.Args(),
+		cmd:          flag.Args(),
 	}
 
 	provider.Setup(runEnv)

@@ -8,23 +8,22 @@ import (
 )
 
 func TestBashRegisterOnCmd(t *testing.T) {
-	bash := BashProvider{}
+	bash := BashResource()
 	assert.True(t, bash.RegisterOnCmd("bash"))
 }
 
-type MockRunEnvironment struct {
-	mock.Mock
-}
-
-func (m *MockRunEnvironment) CRDocker(image string) CRDocker {
-	args := m.Called(image)
-	return args.Get(0).(CRDocker)
-}
-
 func TestBashSetup(t *testing.T) {
-	testEnv := new(MockRunEnvironment)
+	m := &CRDockerMock{}
+	m.On("Pull", "bash")
+	BashResource().Setup(RunEnvironment{CRDocker: m})
+	m.AssertExpectations(t)
+}
 
-	testEnv.On("Pull", "bash")
-	BashProvider{}.Setup(testEnv)
-	testEnv.AssertExpectations(t)
+func TestBashRun(t *testing.T) {
+	m := &CRDockerMock{}
+	m.On("Run", mock.MatchedBy(func(c dockerRunConfig) bool {
+		return c.Image == "ubuntu"
+	}))
+	BashResource().Run(RunEnvironment{CRDocker: m})
+	m.AssertExpectations(t)
 }
