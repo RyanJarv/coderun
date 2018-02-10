@@ -29,29 +29,18 @@ type ICRDocker interface {
 	getImageName() string
 }
 
-type IRunEnvironment interface {
-	Cmd() []string
-}
-
 type RunEnvironment struct {
-	IRunEnvironment
+	//	IRunEnvironment
 	Cwd          string
 	DockerClient *client.Client
-	cmd          []string
+	Cmd          []string
+	Exec         func(...string) string
 	CRDocker     ICRDocker
 }
 
-func (d RunEnvironment) Cmd() []string {
-	return d.cmd
-}
-
-//func (d RunEnvironment) CRDocker() *ICRDocker {
-//	return &d.crdocker
-//}
-
 type RegisterOnCmdFunc func(cmd ...string) bool
-type RunFunc func(IRunEnvironment)
-type SetupFunc func(IRunEnvironment)
+type RunFunc func(RunEnvironment)
+type SetupFunc func(RunEnvironment)
 
 type IResource interface{}
 type Resource struct {

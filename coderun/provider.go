@@ -31,14 +31,6 @@ func init() {
 	Register("rails", RailsResource())
 }
 
-// func CreateRunEnvironment(jVj)(
-// 	runEnv := &RunEnvironment{
-// 		CRDocker:     &CRDocker{Client: cli},
-// 		DockerClient: cli,
-// 		Cmd:          flag.Args(),
-// 	}
-// )
-
 func GetResource(c *ResourceConfig) (*Resource, error) {
 	var provider *Resource
 	for _, p := range pathResources {
@@ -56,10 +48,11 @@ func GetResource(c *ResourceConfig) (*Resource, error) {
 		panic(err)
 	}
 
-	runEnv := &RunEnvironment{
+	runEnv := RunEnvironment{
 		CRDocker:     &CRDocker{Client: cli},
 		DockerClient: cli,
-		cmd:          flag.Args(),
+		Cmd:          flag.Args(),
+		Exec:         Cmd,
 	}
 
 	provider.Setup(runEnv)

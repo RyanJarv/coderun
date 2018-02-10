@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestMatchCommandOrExt(t *testing.T) {
@@ -16,4 +17,13 @@ func TestMatchCommandOrExt(t *testing.T) {
 	assert.False(MatchCommandOrExt([]string{"qwerpoiu"}, "bash", ".sh"))
 	assert.False(MatchCommandOrExt([]string{"/usr/bin/notbash"}, "bash", ".sh"))
 	assert.False(MatchCommandOrExt([]string{"test.sh.not"}, "bash", ".sh"))
+}
+
+type ExecMock struct {
+	mock.Mock
+}
+
+func (m *ExecMock) Exec(image ...string) string {
+	args := m.Called(image)
+	return args.String(0)
 }

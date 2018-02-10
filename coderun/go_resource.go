@@ -1,10 +1,7 @@
 package coderun
 
 import (
-	"log"
 	"os"
-	"regexp"
-	"strings"
 )
 
 func GoResource() *Resource {
@@ -16,21 +13,17 @@ func GoResource() *Resource {
 }
 
 func goRegisterOnCmd(cmd ...string) bool {
-	match, err := regexp.MatchString(`^(([^ ]+/)?go .*|[\S]+\.go)$`, strings.Join(cmd, " "))
-	if err != nil {
-		log.Fatal(err)
-	}
-	return match
+	return MatchCommandOrExt(cmd, "go", ".py")
 }
 
-func goSetup(r IRunEnvironment) {
-	r.(RunEnvironment).CRDocker.(ICRDocker).Pull("golang")
+func goSetup(r RunEnvironment) {
+	r.CRDocker.(ICRDocker).Pull("golang")
 
 	if _, err := os.Stat("./glide.lock"); os.IsNotExist(err) {
-		r.(RunEnvironment).CRDocker.(CRDocker).Run(dockerRunConfig{Image: "golang", DestDir: "/go/src/localhost/myapp", SourceDir: Cwd(), Cmd: []string{"sh", "-c", "curl https://glide.sh/get | sh && glide init --non-interactive && glide install"}})
+		r.CRDocker.Run(dockerRunConfig{Image: "golang", DestDir: "/go/src/localhost/myapp", SourceDir: Cwd(), Cmd: []string{"sh", "-c", "curl https://glide.sh/get | sh && glide init --non-interactive && glide install"}})
 	}
 }
 
-func goRun(r IRunEnvironment) {
-	r.(RunEnvironment).CRDocker.(CRDocker).Run(dockerRunConfig{Image: "golang", DestDir: "/go/src/localhost/myapp", SourceDir: Cwd(), Cmd: []string{"go", "run"}})
+func goRun(r RunEnvironment) {
+	r.CRDocker.Run(dockerRunConfig{Image: "golang", DestDir: "/go/src/localhost/myapp", SourceDir: Cwd(), Cmd: []string{"go", "run"}})
 }

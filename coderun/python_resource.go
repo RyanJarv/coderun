@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"regexp"
-	"strings"
 )
 
 func PythonResource() *Resource {
@@ -17,23 +15,19 @@ func PythonResource() *Resource {
 }
 
 func pythonRegisterOnCmd(cmd ...string) bool {
-	match, err := regexp.MatchString(`^(([^ ]+/)?python[0-9.]* .*|[\S]+\.py)$`, strings.Join(cmd, " "))
-	if err != nil {
-		log.Fatal(err)
-	}
-	return match
+	return MatchCommandOrExt(cmd, "python", ".py")
 }
 
-func pythonSetup(r IRunEnvironment) {
-	r.(RunEnvironment).CRDocker.(CRDocker).Pull("python:3")
+func pythonSetup(r RunEnvironment) {
+	r.CRDocker.Pull("python:3")
 
 	if _, err := os.Stat("./requirements.txt"); err == nil {
-		Cmd("/usr/local/bin/docker", "run", "-t", "--rm", "--name", r.(RunEnvironment).CRDocker.(CRDocker).newImageName(), "-v", fmt.Sprintf("%s:/usr/src/myapp", Cwd()), "-w", "/usr/src/myapp", "python:3", "python", "-m", "venv", ".coderun/venv")
-		Cmd("/usr/local/bin/docker", "run", "-t", "--rm", "--name", r.(RunEnvironment).CRDocker.(CRDocker).newImageName(), "-v", fmt.Sprintf("%s:/usr/src/myapp", Cwd()), "-w", "/usr/src/myapp", "python:3", "sh", "-c", ". .coderun/venv/bin/activate && pip install -r ./requirements.txt")
+		r.Exec("/usr/local/bin/docker", "run", "-t", "--rm", "--name", r.CRDocker.(CRDocker).newImageName(), "-v", fmt.Sprintf("%s:/usr/src/myapp", Cwd()), "-w", "/usr/src/myapp", "python:3", "python", "-m", "venv", ".coderun/venv")
+		r.Exec("/usr/local/bin/docker", "run", "-t", "--rm", "--name", r.CRDocker.(CRDocker).newImageName(), "-v", fmt.Sprintf("%s:/usr/src/myapp", Cwd()), "-w", "/usr/src/myapp", "python:3", "sh", "-c", ". .coderun/venv/bin/activate && pip install -r ./requirements.txt")
 	}
 }
 
-func pythonRun(r IRunEnvironment) {
-	log.Printf("Args: %s", r.Cmd())
-	r.(RunEnvironment).CRDocker.(CRDocker).Run(dockerRunConfig{Image: "python:3", DestDir: "/usr/src/myapp", SourceDir: Cwd(), Cmd: append([]string{".coderun/venv/bin/python"}, r.Cmd()...)})
+func pythonRun(r RunEnvironment) {
+	log.Printf("Args: %s", r.Cmd)
+	r.CRDocker.Run(dockerRunConfig{Image: "python:3", DestDir: "/usr/src/myapp", SourceDir: Cwd(), Cmd: append([]string{".coderun/venv/bin/python"}, r.Cmd...)})
 }
