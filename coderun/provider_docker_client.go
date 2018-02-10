@@ -105,14 +105,14 @@ func (d CRDocker) buildImageStep(source string, args ...string) string {
 	var image = d.newImageName()
 	var preimage = d.newImageName()
 	//append so go will let us pass to a function with a single vervadic parameter
-	Cmd(append([]string{"/usr/local/bin/docker", "run", "-t", "--name", preimage, "-v", fmt.Sprintf("%s:/usr/local/myapp", Cwd()), "-w", "/usr/local/myapp", source}, args...)...)
-	Cmd("/usr/local/bin/docker", "commit", preimage, image)
-	Cmd("/usr/local/bin/docker", "rm", preimage)
+	Exec(append([]string{"/usr/local/bin/docker", "run", "-t", "--name", preimage, "-v", fmt.Sprintf("%s:/usr/local/myapp", Cwd()), "-w", "/usr/local/myapp", source}, args...)...)
+	Exec("/usr/local/bin/docker", "commit", preimage, image)
+	Exec("/usr/local/bin/docker", "rm", preimage)
 	return image
 }
 
 func (d CRDocker) Stop(name string) {
-	Cmd("/usr/local/bin/docker", "stop", name) // Doesn't necessarily stop on it's own
+	Exec("/usr/local/bin/docker", "stop", name) // Doesn't necessarily stop on it's own
 }
 
 func (d CRDocker) getImageName() string {

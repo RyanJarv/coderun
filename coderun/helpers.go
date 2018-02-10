@@ -20,7 +20,7 @@ func CreateCodeRunDir() {
 	}
 }
 
-func Cmd(c ...string) string {
+func Exec(c ...string) string {
 
 	var stdoutBuf, stderrBuf bytes.Buffer
 

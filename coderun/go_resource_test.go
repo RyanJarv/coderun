@@ -14,34 +14,38 @@ type GoSuite struct {
 	Resource       *Resource
 	CRDockerMock   *CRDockerMock
 	RunEnvironment RunEnvironment
+	ProviderEnv    dockerProviderEnv
 }
 
 func (suite *GoSuite) SetupTest() {
 	suite.Resource = GoResource()
 	suite.CRDockerMock = &CRDockerMock{}
-	suite.RunEnvironment = RunEnvironment{CRDocker: suite.CRDockerMock}
+	suite.RunEnvironment = RunEnvironment{}
+	suite.ProviderEnv = dockerProviderEnv{CRDocker: suite.CRDockerMock}
 }
 
-func (suite *GoSuite) TestRegisterOnCmd() {
-	assert.True(suite.T(), suite.Resource.RegisterOnCmd("go"))
+func (suite *GoSuite) TestRegister() {
+	suite.RunEnvironment.Cmd = []string{"go"}
+	assert.True(suite.T(), suite.Resource.Register(suite.RunEnvironment, suite.ProviderEnv))
 }
 
 func (suite *GoSuite) TestDoesntRegisterOnWrongCmd() {
-	assert.False(suite.T(), suite.Resource.RegisterOnCmd("asdf"))
+	suite.RunEnvironment.Cmd = []string{"asdf"}
+	assert.False(suite.T(), suite.Resource.Register(suite.RunEnvironment, suite.ProviderEnv))
 }
 
 func (suite *GoSuite) TestSetup() {
 	d := suite.CRDockerMock
 	d.On("Pull", mock.AnythingOfType("string"))
 	d.On("Run", mock.Anything)
-	suite.Resource.Setup(suite.RunEnvironment)
+	suite.Resource.Setup(suite.RunEnvironment, suite.ProviderEnv)
 	d.AssertExpectations(suite.T())
 }
 
 func (suite *GoSuite) TestRun() {
 	m := suite.CRDockerMock
 	m.On("Run", mock.AnythingOfType(fmt.Sprintf("%T", dockerRunConfig{})))
-	suite.Resource.Run(suite.RunEnvironment)
+	suite.Resource.Run(suite.RunEnvironment, suite.ProviderEnv)
 	m.AssertExpectations(suite.T())
 }
 

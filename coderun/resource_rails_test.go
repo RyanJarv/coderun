@@ -15,34 +15,38 @@ type RailsSuite struct {
 	CRDockerMock   *CRDockerMock
 	ExecMock       *ExecMock
 	RunEnvironment RunEnvironment
+	ProviderEnv    IProviderEnv
 }
 
 func (suite *RailsSuite) SetupTest() {
 	suite.Resource = RailsResource()
 	suite.CRDockerMock = &CRDockerMock{}
 	suite.ExecMock = &ExecMock{}
-	suite.RunEnvironment = RunEnvironment{CRDocker: suite.CRDockerMock, Exec: suite.ExecMock.Exec}
+	suite.RunEnvironment = RunEnvironment{}
+	suite.ProviderEnv = dockerProviderEnv{CRDocker: suite.CRDockerMock, Exec: suite.ExecMock.Exec}
 }
 
-func (suite *RailsSuite) TestRegisterOnCmd() {
-	assert.True(suite.T(), suite.Resource.RegisterOnCmd("rails server"))
+func (suite *RailsSuite) TestRegister() {
+	suite.RunEnvironment.Cmd = []string{"rails", "server"}
+	assert.True(suite.T(), suite.Resource.Register(suite.RunEnvironment, suite.ProviderEnv.(dockerProviderEnv)))
 }
 
 func (suite *RailsSuite) TestDoesntRegisterOnWrongCmd() {
-	assert.False(suite.T(), suite.Resource.RegisterOnCmd("asdf"))
+	suite.RunEnvironment.Cmd = []string{"asdf"}
+	assert.False(suite.T(), suite.Resource.Register(suite.RunEnvironment, suite.ProviderEnv.(dockerProviderEnv)))
 }
 
 func (suite *RailsSuite) TestSetup() {
 	d := suite.CRDockerMock
 	d.On("Pull", "ruby:2.3")
-	suite.Resource.Setup(suite.RunEnvironment)
+	suite.Resource.Setup(suite.RunEnvironment, suite.ProviderEnv.(dockerProviderEnv))
 	d.AssertExpectations(suite.T())
 }
 
 func (suite *RailsSuite) TestRun() {
 	d := suite.CRDockerMock
 	d.On("Run", mock.AnythingOfType(fmt.Sprintf("%T", dockerRunConfig{})))
-	suite.Resource.Run(suite.RunEnvironment)
+	suite.Resource.Run(suite.RunEnvironment, suite.ProviderEnv)
 	d.AssertExpectations(suite.T())
 }
 
