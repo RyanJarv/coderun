@@ -2,68 +2,76 @@ package coderun
 
 import (
 	"errors"
-	"flag"
 	"fmt"
+	"path"
 )
 
 type Provider struct {
-	Name             string
-	Register         func(RunEnvironment) bool
-	ResourceRegister func(*Resource, RunEnvironment, IProviderEnv) bool
-	Setup            func(RunEnvironment) IProviderEnv
-	Run              func(RunEnvironment, IProviderEnv)
-	Resources        map[string]*Resource
-	ProviderEnv      IProviderEnv
+	Name                string
+	Register            func(RunEnvironment) bool
+	ResourceRegister    func(Provider, RunEnvironment)
+	Setup               func(Provider, RunEnvironment) IProviderEnv
+	Deploy              func(Provider, RunEnvironment, IProviderEnv)
+	Run                 func(Provider, RunEnvironment, IProviderEnv)
+	RegisteredResources map[string]*Resource
+	Resources           map[string]*Resource
+	ProviderEnv         IProviderEnv
 }
 
 type RunEnvironment struct {
-	Providers  map[string]*Provider
-	Registered map[string]*Resource
+	Name                string
+	EntryPoint          string
+	Providers           map[string]*Provider
+	RegisteredProviders map[string]*Provider
 
-	Cmd []string
-	Cwd string
+	Cmd     []string
+	CodeDir string
+	Flags   map[string]*string
 }
 
 type IProviderEnv interface {
 }
 
-func GetRunEnvironment() *RunEnvironment {
+func CreateRunEnvironment() *RunEnvironment {
 	return &RunEnvironment{
 		Providers: map[string]*Provider{
 			"docker": DockerProvider(),
-			//"s3":   S3Resource(),
+			"lambda": AWSLambdaProvider(),
 		},
-		Registered: map[string]*Resource{},
-		Cmd:        flag.Args(),
+		//Registered: map[string]map[*Provider]*Resource{},
+		RegisteredProviders: map[string]*Provider{},
+		CodeDir:             Cwd(),
+		Name:                path.Base(Cwd()),
+		EntryPoint:          "lambda_handler",
+		Flags:               make(map[string]*string),
 	}
 }
 
-type ResourceConfig struct {
-	Cmd string
-}
-
-func Setup(c *ResourceConfig) (*RunEnvironment, error) {
-	runEnv := GetRunEnvironment()
-
-	registered := map[*Provider]*Resource{}
-	for _, provider := range runEnv.Providers {
-		if provider.Register(*runEnv) {
-			for _, resource := range provider.Resources {
-				if provider.ResourceRegister(resource, *runEnv, provider.ProviderEnv) {
-					registered[provider] = resource
-				}
+func Setup(runEnv *RunEnvironment) (*RunEnvironment, error) {
+	if p, _ := runEnv.Flags["provider"]; *p != "" {
+		runEnv.RegisteredProviders[*p] = runEnv.Providers[*p]
+	} else {
+		for n, p := range runEnv.Providers {
+			//These probably should just be classes
+			if p.Register(*runEnv) {
+				runEnv.RegisteredProviders[n] = p
 			}
 		}
 	}
-	if len(registered) <= 0 {
+
+	for _, p := range runEnv.RegisteredProviders {
+		p.ResourceRegister(*p, *runEnv)
+	}
+
+	if len(runEnv.RegisteredProviders) <= 0 {
 		return nil, errors.New(fmt.Sprintf("No providers found for this command"))
 	}
 
-	for provider, resource := range registered {
-		provider.ProviderEnv = provider.Setup(*runEnv)
-		resource.Setup(*runEnv, provider.ProviderEnv)
-		provider.Run(*runEnv, provider.ProviderEnv)
-		resource.Run(*runEnv, provider.ProviderEnv)
+	for _, provider := range runEnv.RegisteredProviders {
+		providerEnv := provider.Setup(*provider, *runEnv)
+
+		runProviderStep("deploy", provider, *runEnv, providerEnv)
+		runProviderStep("run", provider, *runEnv, providerEnv)
 	}
 
 	return runEnv, nil

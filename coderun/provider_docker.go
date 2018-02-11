@@ -1,6 +1,8 @@
 package coderun
 
 import (
+	"log"
+
 	"github.com/docker/docker/client"
 )
 
@@ -26,30 +28,45 @@ func DockerProvider() *Provider {
 			"bash":   BashResource(),
 			"rails":  RailsResource(),
 		},
-		ProviderEnv: nil,
+		RegisteredResources: map[string]*Resource{},
+		ProviderEnv:         nil,
 	}
 }
 
 func dockerRegister(r RunEnvironment) bool {
-	return MatchCommandOrExt(r.Cmd, "bash", ".sh")
+	return true
 }
 
-func dockerResourceRegister(resource *Resource, runEnv RunEnvironment, p IProviderEnv) bool {
-	return resource.Register(runEnv, p.(dockerProviderEnv))
+func dockerResourceRegister(p Provider, runEnv RunEnvironment) {
+	for n, r := range p.Resources {
+		if r.Register(runEnv, p) {
+			p.RegisteredResources[n] = r
+		}
+	}
+	if len(p.RegisteredResources) != 1 {
+		log.Fatalf("Found %d registered docker resources, should be one.\n", len(p.RegisteredResources))
+	}
 }
 
-func dockerSetup(r RunEnvironment) IProviderEnv {
+func dockerSetup(provider Provider, r RunEnvironment) IProviderEnv {
 	cli, err := client.NewEnvClient()
 	if err != nil {
 		panic(err)
 	}
-	providerEnv := &dockerProviderEnv{
+	providerEnv := dockerProviderEnv{
 		CRDocker: &CRDocker{Client: cli},
 		cli:      cli,
 		Exec:     Exec,
 	}
+	for _, resource := range provider.RegisteredResources {
+		resource.Setup(r, providerEnv)
+	}
 	return providerEnv
 }
 
-func dockerRun(r RunEnvironment, p IProviderEnv) {
+func dockerRun(provider Provider, r RunEnvironment, p IProviderEnv) {
+	providerEnv := p.(dockerProviderEnv)
+	for _, resource := range provider.RegisteredResources {
+		resource.Run(r, providerEnv)
+	}
 }

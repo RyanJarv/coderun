@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -78,6 +79,9 @@ func Exec(c ...string) string {
 }
 
 func MatchCommandOrExt(toSearch []string, cmd string, ext string) bool {
+	if len(toSearch) == 0 {
+		return false
+	}
 	file := filepath.Base(toSearch[0])
 	return (file == cmd || filepath.Ext(file) == ext)
 }
@@ -88,4 +92,24 @@ func Cwd() string {
 		log.Fatal("Error getting current working directory")
 	}
 	return cwd
+}
+
+func RandString(length int) string {
+	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
+	b := make([]rune, length)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(b)
+}
+
+func runProviderStep(step string, provider *Provider, r RunEnvironment, p IProviderEnv) {
+	switch {
+	case step == "deploy" && provider.Deploy != nil:
+		provider.Deploy(*provider, r, p)
+	case step == "run" && provider.Run != nil:
+		provider.Run(*provider, r, p)
+	default:
+		log.Printf("No step %s registered for provider %s", step, provider.Name)
+	}
 }

@@ -13,7 +13,7 @@ func GoResource() *Resource {
 }
 
 func goRegister(r RunEnvironment, p IProviderEnv) bool {
-	return MatchCommandOrExt(r.Cmd, "go", ".py")
+	return MatchCommandOrExt(r.Cmd, "go", ".go")
 }
 
 func goSetup(r RunEnvironment, d IProviderEnv) {

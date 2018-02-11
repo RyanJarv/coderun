@@ -50,8 +50,6 @@ func railsRun(r RunEnvironment, p IProviderEnv) {
 			}
 		}
 	}
-	log.Printf("%d", port)
 	image := p.(dockerProviderEnv).CRDocker.getImageName()
-	log.Printf("Cmd is: %s", r.Cmd)
 	p.(dockerProviderEnv).CRDocker.Run(dockerRunConfig{Image: image, DestDir: "/usr/src/myapp", SourceDir: Cwd(), Port: port, Cmd: append(append([]string{"bundler", "exec"}, r.Cmd...), "-b", "0.0.0.0")})
 }
