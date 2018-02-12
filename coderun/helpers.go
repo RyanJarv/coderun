@@ -26,7 +26,7 @@ func Exec(c ...string) string {
 	var stdoutBuf, stderrBuf bytes.Buffer
 
 	cmd := exec.Command(c[0], c[1:]...)
-	log.Printf("%v", cmd.Args)
+	Logger.info.Printf("Command arguments: %v", cmd.Args)
 
 	stdoutIn, _ := cmd.StdoutPipe()
 	stderrIn, _ := cmd.StderrPipe()
@@ -35,10 +35,10 @@ func Exec(c ...string) string {
 	stdout := io.MultiWriter(os.Stdout, &stdoutBuf)
 	stderr := io.MultiWriter(os.Stderr, &stderrBuf)
 
-	log.Printf("Running command and waiting for it to finish...")
+	Logger.info.Printf("Running command and waiting for it to finish...")
 	tty, err := pty.Start(cmd)
 	if err != nil {
-		fmt.Println("Error start cmd", err)
+		Logger.error.Fatal("Error start cmd", err)
 	}
 	defer tty.Close()
 
@@ -53,7 +53,7 @@ func Exec(c ...string) string {
 	}()
 
 	if err != nil {
-		log.Fatalf("cmd.Start() failed with '%s'\n", err)
+		Logger.error.Fatalf("cmd.Start() failed with '%s'\n", err)
 	}
 
 	go func() {
@@ -65,12 +65,12 @@ func Exec(c ...string) string {
 	}()
 
 	err = cmd.Wait()
-	log.Printf("Done with command %s", cmd.Args)
+	Logger.info.Printf("Done with command %s", cmd.Args)
 	if err != nil {
-		log.Fatalf("cmd.Run() failed with %s\n", err)
+		Logger.error.Fatalf("cmd.Run() failed with %s\n", err)
 	}
 	if errStdout != nil || errStderr != nil {
-		log.Fatal("failed to capture stdout or stderr\n")
+		Logger.error.Fatal("failed to capture stdout or stderr\n")
 	}
 
 	outStr := string(stdoutBuf.Bytes())
@@ -89,7 +89,7 @@ func MatchCommandOrExt(toSearch []string, cmd string, ext string) bool {
 func Cwd() string {
 	cwd, err := os.Getwd()
 	if err != nil {
-		log.Fatal("Error getting current working directory")
+		Logger.error.Fatal("Error getting current working directory")
 	}
 	return cwd
 }
@@ -110,6 +110,6 @@ func runProviderStep(step string, provider *Provider, r RunEnvironment, p IProvi
 	case step == "run" && provider.Run != nil:
 		provider.Run(*provider, r, p)
 	default:
-		log.Printf("No step %s registered for provider %s", step, provider.Name)
+		Logger.warn.Printf("No step %s registered for provider %s", step, provider.Name)
 	}
 }

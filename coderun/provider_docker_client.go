@@ -25,12 +25,12 @@ type CRDocker struct {
 }
 
 func (d CRDocker) Pull(image string) {
-	log.Printf("Pulling image: %s", image)
+	Logger.info.Printf("Pulling image: %s", image)
 	_, err := d.Client.ImagePull(context.Background(), image, types.ImagePullOptions{})
 	if err != nil {
 		panic(err)
 	}
-	log.Printf("Done pulling image: %s", image)
+	Logger.debug.Printf("Done pulling image: %s", image)
 }
 
 func (d CRDocker) Run(c dockerRunConfig) {
@@ -48,20 +48,24 @@ func (d CRDocker) Run(c dockerRunConfig) {
 
 	m := []mount.Mount{{Type: "bind", Source: c.SourceDir, Target: c.DestDir}}
 
-	log.Printf("Commands: %s", c.Cmd)
-	log.Printf("Bindings: %v", portBindings)
+	Logger.info.Printf("Running: %s", c.Cmd)
+	if len(portBindings) > 0 {
+		Logger.info.Printf("Bindings: %v", portBindings)
+	}
 	resp, err := d.Client.ContainerCreate(ctx, &container.Config{Image: c.Image, Cmd: c.Cmd, WorkingDir: c.DestDir, ExposedPorts: exposedPorts, Tty: true, OpenStdin: true, AttachStdin: true, AttachStdout: true, AttachStderr: true}, &container.HostConfig{Mounts: m, PortBindings: portBindings}, &network.NetworkingConfig{}, d.newImageName())
 	if err != nil {
 		panic(err)
 	}
-	log.Printf("Container ID: %s", resp.ID)
-	log.Printf("Container Warnings: %s", resp.Warnings)
+	Logger.debug.Printf("Container ID: %s", resp.ID)
+	if len(resp.Warnings) > 0 {
+		Logger.warn.Printf("Container Warnings: %s", resp.Warnings)
+	}
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt)
 	go func() {
 		for sig := range ch {
-			log.Printf("Recieved %s, cleaning up", sig.String())
+			Logger.error.Printf("Recieved %s, cleaning up", sig.String())
 			d.Client.ContainerKill(context.Background(), resp.ID, "SIGTERM")
 			timeout := 2 * time.Second
 			d.Client.ContainerStop(context.Background(), resp.ID, &timeout)
