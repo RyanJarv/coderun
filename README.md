@@ -1,3 +1,4 @@
+[!Build Status](https://travis-ci.org/RyanJarv/coderun.svg?branch=master)](https://travis-ci.org/RyanJarv/coderun)
 This is just an initial concept and will mostly likely not work for you currently.
 
 ## Goal
