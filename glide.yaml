@@ -6,3 +6,5 @@ import:
   - aws/endpoints
   - aws/session
 - package: github.com/kr/pty
+- package: github.com/stretchr/objx
+  version: ^0.1.0

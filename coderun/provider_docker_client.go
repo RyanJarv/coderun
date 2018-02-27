@@ -52,15 +52,7 @@ func (d CRDocker) Run(c dockerRunConfig) {
 	if len(portBindings) > 0 {
 		Logger.info.Printf("Bindings: %v", portBindings)
 	}
-
-	var resp container.ContainerCreateCreatedBody
-	var err error
-	if exposedPorts == nil {
-		resp, err := d.Client.ContainerCreate(ctx, &container.Config{Image: c.Image, Cmd: c.Cmd, WorkingDir: c.DestDir, ExposedPorts: exposedPorts, Tty: true, OpenStdin: true, AttachStdin: true, AttachStdout: true, AttachStderr: true}, &container.HostConfig{Mounts: m, PortBindings: portBindings}, &network.NetworkingConfig{}, d.newImageName())
-	} else {
-		resp, err := d.Client.ContainerCreate(ctx, &container.Config{Image: c.Image, Cmd: c.Cmd, WorkingDir: c.DestDir, Tty: true, OpenStdin: true, AttachStdin: true, AttachStdout: true, AttachStderr: true}, &container.HostConfig{Mounts: m, PortBindings: portBindings}, &network.NetworkingConfig{}, d.newImageName())
-
-	}
+	resp, err := d.Client.ContainerCreate(ctx, &container.Config{Image: c.Image, Cmd: c.Cmd, WorkingDir: c.DestDir, ExposedPorts: exposedPorts, Tty: true, OpenStdin: true, AttachStdin: true, AttachStdout: true, AttachStderr: true}, &container.HostConfig{Mounts: m, PortBindings: portBindings}, &network.NetworkingConfig{}, d.newImageName())
 	if err != nil {
 		panic(err)
 	}

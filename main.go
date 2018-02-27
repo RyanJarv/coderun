@@ -4,7 +4,7 @@ import (
 	"flag"
 	"log"
 
-	"github.com/ryanjarv/coderun/coderun"
+	"github.com/RyanJarv/coderun/coderun"
 )
 
 func main() {

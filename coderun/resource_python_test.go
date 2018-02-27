@@ -13,15 +13,13 @@ type PythonSuite struct {
 	suite.Suite
 	Resource       *Resource
 	CRDockerMock   *CRDockerMock
-	ExecMock       *ExecMock
 	RunEnvironment RunEnvironment
-	ProviderEnv    IProviderEnv
+	ProviderEnv    dockerProviderEnv
 }
 
 func (suite *PythonSuite) SetupTest() {
 	suite.Resource = PythonResource()
 	suite.CRDockerMock = &CRDockerMock{}
-	suite.ExecMock = &ExecMock{}
 	suite.RunEnvironment = RunEnvironment{}
 	suite.ProviderEnv = dockerProviderEnv{CRDocker: suite.CRDockerMock}
 }
@@ -38,16 +36,17 @@ func (suite *PythonSuite) TestDoesntRegisterOnWrongCmd() {
 
 func (suite *PythonSuite) TestSetup() {
 	d := suite.CRDockerMock
-	d.On("Pull", "python:3")
+	d.On("Pull", mock.AnythingOfType("string"))
+	d.On("Run", mock.Anything)
 	suite.Resource.Setup(suite.RunEnvironment, suite.ProviderEnv)
 	d.AssertExpectations(suite.T())
 }
 
 func (suite *PythonSuite) TestRun() {
-	d := suite.CRDockerMock
-	d.On("Run", mock.AnythingOfType(fmt.Sprintf("%T", dockerRunConfig{})))
+	m := suite.CRDockerMock
+	m.On("Run", mock.AnythingOfType(fmt.Sprintf("%T", dockerRunConfig{})))
 	suite.Resource.Run(suite.RunEnvironment, suite.ProviderEnv)
-	d.AssertExpectations(suite.T())
+	m.AssertExpectations(suite.T())
 }
 
 func TestPythonSuite(t *testing.T) {

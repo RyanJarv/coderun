@@ -2,7 +2,6 @@ package coderun
 
 import (
 	"fmt"
-	"log"
 	"os"
 )
 
@@ -19,7 +18,6 @@ func jsRegister(r RunEnvironment, p IProviderEnv) bool {
 }
 
 func jsSetup(r RunEnvironment, p IProviderEnv) {
-	log.Printf("%v", p.(dockerProviderEnv).Exec)
 	p.(dockerProviderEnv).Exec("/usr/local/bin/docker", "pull", "node")
 
 	if _, err := os.Stat("./package-lock.json"); os.IsNotExist(err) {
