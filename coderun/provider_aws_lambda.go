@@ -21,9 +21,7 @@ func AWSLambdaProvider() *Provider {
 		Run:                 awsLambdaRun,
 		RegisteredResources: map[string]*Resource{},
 		Resources: map[string]*Resource{
-			"pipResource":     PipResource(),
 			"awsLambdaPython": AWSLambdaPython(),
-			"awsLambdaJs":     AWSLambdaJs(),
 		},
 		ProviderEnv: &awsLambdaProviderEnv{},
 	}
@@ -33,9 +31,10 @@ func awsLambdaRegister(r *RunEnvironment) bool {
 }
 
 func awsLambdaResourceRegister(p Provider, runEnv *RunEnvironment) {
-	for n, r := range p.Resources {
+	for name, r := range p.Resources {
 		if r.Register(runEnv, p) {
-			p.RegisteredResources[n] = r
+			Logger.info.Printf("Registering resource %s", name)
+			p.RegisteredResources[name] = r
 		}
 	}
 
