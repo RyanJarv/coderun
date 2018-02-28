@@ -21,6 +21,7 @@ func pipRegister(r *RunEnvironment, p IProviderEnv) bool {
 
 func pipSetup(r *RunEnvironment, p IProviderEnv) {
 	Logger.debug.Printf("Running pipSetup")
+	r.CRDocker.Pull("python:3")
 	r.DependsDir = ".coderun/venv/lib/python3.6/site-packages/"
 	r.CRDocker.Run(dockerRunConfig{
 		Image:     "python:3",

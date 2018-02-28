@@ -16,13 +16,14 @@ func DockerProvider() *Provider {
 		Setup:            dockerSetup,
 		Run:              dockerRun,
 		Resources: map[string]*Resource{
-			"pip":    PipResource(),
-			"python": PythonResource(),
-			"ruby":   RubyResource(),
-			"go":     GoResource(),
-			"nodejs": JsResource(),
-			"bash":   BashResource(),
-			"rails":  RailsResource(),
+			"pip":     PipResource(),
+			"python":  PythonResource(),
+			"bundler": BundlerResource(),
+			"ruby":    RubyResource(),
+			"go":      GoResource(),
+			"nodejs":  JsResource(),
+			"bash":    BashResource(),
+			"rails":   RailsResource(),
 		},
 		RegisteredResources: map[string]*Resource{},
 		ProviderEnv:         nil,
@@ -34,12 +35,13 @@ func dockerRegister(r *RunEnvironment) bool {
 }
 
 func dockerResourceRegister(p Provider, runEnv *RunEnvironment) {
-	for n, r := range p.Resources {
+	for name, r := range p.Resources {
 		if r.Register(runEnv, p) {
-			p.RegisteredResources[n] = r
+			Logger.info.Printf("Registering resource %s", name)
+			p.RegisteredResources[name] = r
 		}
 	}
-	if len(p.RegisteredResources) <= 1 {
+	if len(p.RegisteredResources) < 1 {
 		log.Fatalf("Didn't find any registered docker resources")
 	}
 }

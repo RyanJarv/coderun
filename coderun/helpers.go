@@ -81,6 +81,7 @@ func Exec(c ...string) string {
 }
 
 func MatchCommandOrExt(toSearch []string, cmd string, ext string) bool {
+	Logger.debug.Printf("Searching for command %s cmd or ext %s in %v", cmd, ext, toSearch)
 	if len(toSearch) == 0 {
 		return false
 	}
