@@ -2,6 +2,7 @@ package coderun
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -14,6 +15,7 @@ func BundlerResource() *Resource {
 }
 
 func bundlerRegister(r *RunEnvironment, p IProviderEnv) bool {
+	log.Printf("Codedir: %s", r.CodeDir)
 	f := filepath.Join(r.CodeDir, "Gemfile")
 	Logger.debug.Printf("Checking for file at %s", f)
 	_, err := os.Stat(f)

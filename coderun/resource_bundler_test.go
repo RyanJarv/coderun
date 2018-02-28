@@ -1,15 +1,13 @@
 package coderun
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
-type RubySuite struct {
+type BundlerSuite struct {
 	suite.Suite
 	Resource       *Resource
 	CRDockerMock   *CRDockerMock
@@ -18,8 +16,8 @@ type RubySuite struct {
 	ProviderEnv    IProviderEnv
 }
 
-func (suite *RubySuite) SetupTest() {
-	suite.Resource = RubyResource()
+func (suite *BundlerSuite) SetupTest() {
+	suite.Resource = BundlerResource()
 	suite.CRDockerMock = &CRDockerMock{}
 	suite.ExecMock = &ExecMock{}
 	suite.RunEnvironment = &RunEnvironment{
@@ -30,30 +28,23 @@ func (suite *RubySuite) SetupTest() {
 	Logger = SetupLogger("error")
 }
 
-func (suite *RubySuite) TestRegister() {
+func (suite *BundlerSuite) TestRegister() {
 	suite.RunEnvironment.Cmd = []string{"ruby"}
 	assert.True(suite.T(), suite.Resource.Register(suite.RunEnvironment, suite.ProviderEnv))
 }
 
-func (suite *RubySuite) TestDoesntRegisterOnWrongCmd() {
+func (suite *BundlerSuite) TestDoesntRegisterOnWrongCmd() {
 	suite.RunEnvironment.Cmd = []string{"asdf"}
 	assert.False(suite.T(), suite.Resource.Register(suite.RunEnvironment, suite.ProviderEnv))
 }
 
-func (suite *RubySuite) TestSetup() {
+func (suite *BundlerSuite) TestSetup() {
 	d := suite.CRDockerMock
 	d.On("Pull", "ruby:2.3")
 	suite.Resource.Setup(suite.RunEnvironment, suite.ProviderEnv)
 	d.AssertExpectations(suite.T())
 }
 
-func (suite *RubySuite) TestRun() {
-	d := suite.CRDockerMock
-	d.On("Run", mock.AnythingOfType(fmt.Sprintf("%T", dockerRunConfig{})))
-	suite.Resource.Run(suite.RunEnvironment, suite.ProviderEnv)
-	d.AssertExpectations(suite.T())
-}
-
-func TestRubySuite(t *testing.T) {
-	suite.Run(t, new(RubySuite))
+func TestBundlerSuite(t *testing.T) {
+	suite.Run(t, new(BundlerSuite))
 }
