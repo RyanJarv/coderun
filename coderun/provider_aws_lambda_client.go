@@ -42,7 +42,7 @@ func NewCRLambda(awsConfig *aws.Config) *CRLambda {
 }
 
 func (d *CRLambda) Setup(r *RunEnvironment) {
-	d.lambdaName = r.Name
+	d.lambdaName = "coderun-test"
 	d.codeDir = r.CodeDir
 	d.dependsDir = r.DependsDir
 	d.ignoreFiles = r.IgnoreFiles
@@ -51,13 +51,13 @@ func (d *CRLambda) Setup(r *RunEnvironment) {
 	d.createIamRole()
 }
 
-func (d *CRLambda) Deploy(r *RunEnvironment, p awsLambdaProviderEnv) {
+func (d *CRLambda) Deploy(lang string, r *RunEnvironment, p awsLambdaProviderEnv) {
 	d.lambdaFunctionArn = d.getConfig("awsLambdaFunctionArn")
 
 	if d.lambdaFunctionArn != "" {
 		d.updateLambdaFunction()
 	} else {
-		arn := d.createLambdaFunction()
+		arn := d.createLambdaFunction(lang)
 		d.setConfig("awsLambdaFunctionArn", arn)
 		d.lambdaFunctionArn = arn
 	}
@@ -114,7 +114,7 @@ func (d *CRLambda) createIamRole() string {
 	return d.iamRoleArn
 }
 
-func (d *CRLambda) createLambdaFunction() string {
+func (d *CRLambda) createLambdaFunction(lang string) string {
 	contents, err := ioutil.ReadFile(d.zipFile)
 	if err != nil {
 		log.Fatal(err)
@@ -129,7 +129,7 @@ func (d *CRLambda) createLambdaFunction() string {
 		FunctionName: aws.String(d.lambdaName),
 		Handler:      aws.String("test.lambda_handler"),
 		Role:         aws.String(d.iamRoleArn),
-		Runtime:      aws.String("python3.6"),
+		Runtime:      aws.String(lang),
 	}
 	resp, err := d.lambda.CreateFunction(createArgs)
 

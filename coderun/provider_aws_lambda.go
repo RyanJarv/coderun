@@ -1,6 +1,8 @@
 package coderun
 
 import (
+	"log"
+
 	"github.com/aws/aws-sdk-go/aws"
 )
 
@@ -21,6 +23,7 @@ func AWSLambdaProvider() *Provider {
 		Resources: map[string]*Resource{
 			"pipResource":     PipResource(),
 			"awsLambdaPython": AWSLambdaPython(),
+			"awsLambdaJs":     AWSLambdaJs(),
 		},
 		ProviderEnv: &awsLambdaProviderEnv{},
 	}
@@ -34,6 +37,10 @@ func awsLambdaResourceRegister(p Provider, runEnv *RunEnvironment) {
 		if r.Register(runEnv, p) {
 			p.RegisteredResources[n] = r
 		}
+	}
+
+	if len(p.RegisteredResources) < 1 {
+		log.Fatalf("Didn't find any registered lambda resources")
 	}
 }
 
@@ -65,6 +72,7 @@ func awsLambdaDeploy(provider Provider, r *RunEnvironment, p IProviderEnv) {
 		if resource.Deploy == nil {
 			Logger.info.Printf("No step Deploy found for resource %s", resource.Name)
 		} else {
+			Logger.info.Printf("Running lambda resource %s", provider.Name)
 			resource.Deploy(r, providerEnv)
 		}
 	}
@@ -72,5 +80,13 @@ func awsLambdaDeploy(provider Provider, r *RunEnvironment, p IProviderEnv) {
 
 func awsLambdaRun(provider Provider, r *RunEnvironment, p IProviderEnv) {
 	providerEnv := p.(awsLambdaProviderEnv)
-	providerEnv.CRLambda.Run(r, providerEnv)
+
+	for _, resource := range provider.RegisteredResources {
+		if resource.Run == nil {
+			Logger.info.Printf("No step Run found for resource %s", resource.Name)
+		} else {
+			Logger.info.Printf("Running lambda resource %s", provider.Name)
+			resource.Run(r, providerEnv)
+		}
+	}
 }
