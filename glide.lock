@@ -1,5 +1,5 @@
 hash: c4b1f1805e7e3e6b38b6a1a97929f07f9274d8a43d34899e6415f3b6325c0068
-updated: 2018-02-26T19:41:18.952114561-06:00
+updated: 2018-02-27T18:02:47.650646299-06:00
 imports:
 - name: github.com/aws/aws-sdk-go
   version: 9ed0c8de252f04ac45a65358377103d5a1aa2d92
@@ -86,10 +86,6 @@ imports:
   - specs-go/v1
 - name: github.com/pkg/errors
   version: 30136e27e2ac8d167177e8a583aa4c3fea5be833
-- name: github.com/ryanjarv/coderun
-  version: e5446f72987e4e9308df34f481e6a20adf786967
-  subpackages:
-  - coderun
 - name: github.com/stretchr/objx
   version: facf9a85c22f48d2f52f2380e4efce1768749a89
 - name: golang.org/x/net

@@ -13,18 +13,18 @@ func JsResource() *Resource {
 	}
 }
 
-func jsRegister(r RunEnvironment, p IProviderEnv) bool {
+func jsRegister(r *RunEnvironment, p IProviderEnv) bool {
 	return MatchCommandOrExt(r.Cmd, "node", ".js")
 }
 
-func jsSetup(r RunEnvironment, p IProviderEnv) {
-	p.(dockerProviderEnv).Exec("/usr/local/bin/docker", "pull", "node")
+func jsSetup(r *RunEnvironment, p IProviderEnv) {
+	r.Exec("/usr/local/bin/docker", "pull", "node")
 
 	if _, err := os.Stat("./package-lock.json"); os.IsNotExist(err) {
-		p.(dockerProviderEnv).Exec("/usr/local/bin/docker", "run", "-t", "--rm", "--name", p.(dockerProviderEnv).CRDocker.newImageName(), "-v", fmt.Sprintf("%s:/usr/src/myapp", Cwd()), "-w", "/usr/src/myapp", "node", "npm", "install")
+		r.Exec("/usr/local/bin/docker", "run", "-t", "--rm", "--name", r.CRDocker.newImageName(), "-v", fmt.Sprintf("%s:/usr/src/myapp", Cwd()), "-w", "/usr/src/myapp", "node", "npm", "install")
 	}
 }
 
-func jsRun(r RunEnvironment, p IProviderEnv) {
-	p.(dockerProviderEnv).CRDocker.Run(dockerRunConfig{Image: "node", DestDir: "/usr/src/myapp", SourceDir: Cwd(), Cmd: append([]string{"node"}, r.Cmd...)})
+func jsRun(r *RunEnvironment, p IProviderEnv) {
+	r.CRDocker.Run(dockerRunConfig{Image: "node", DestDir: "/usr/src/myapp", SourceDir: Cwd(), Cmd: append([]string{"node"}, r.Cmd...)})
 }

@@ -26,8 +26,10 @@ type CRLambda struct {
 	lambdaFunctionArn string
 	sourceFiles       chan string
 	lambdaName        string
-	codeDir           string
+	codeDir           string //Optional dependencies dir to include in zip
+	dependsDir        string
 	zipFile           string
+	ignoreFiles       []string
 }
 
 func NewCRLambda(awsConfig *aws.Config) *CRLambda {
@@ -39,15 +41,17 @@ func NewCRLambda(awsConfig *aws.Config) *CRLambda {
 	return d
 }
 
-func (d *CRLambda) Setup(r RunEnvironment) {
+func (d *CRLambda) Setup(r *RunEnvironment) {
 	d.lambdaName = r.Name
 	d.codeDir = r.CodeDir
+	d.dependsDir = r.DependsDir
+	d.ignoreFiles = r.IgnoreFiles
 
-	d.zipAndUploadCode(r.CodeDir)
+	d.zipAndUploadCode(r.CodeDir, r.DependsDir)
 	d.createIamRole()
 }
 
-func (d *CRLambda) Deploy(r RunEnvironment, p awsLambdaProviderEnv) {
+func (d *CRLambda) Deploy(r *RunEnvironment, p awsLambdaProviderEnv) {
 	d.lambdaFunctionArn = d.getConfig("awsLambdaFunctionArn")
 
 	if d.lambdaFunctionArn != "" {
@@ -60,7 +64,7 @@ func (d *CRLambda) Deploy(r RunEnvironment, p awsLambdaProviderEnv) {
 	os.Remove(d.zipFile)
 }
 
-func (d *CRLambda) Run(r RunEnvironment, p awsLambdaProviderEnv) {
+func (d *CRLambda) Run(r *RunEnvironment, p awsLambdaProviderEnv) {
 	resp, err := d.lambda.Invoke(&lambda.InvokeInput{
 		FunctionName: aws.String(d.lambdaName),
 		LogType:      aws.String(lambda.LogTypeTail),
@@ -169,6 +173,10 @@ func (d *CRLambda) zipper(output string, files chan string) {
 			log.Fatal(err)
 		}
 
+		// Move dependencies to root of zip
+		if strings.HasPrefix(file, d.dependsDir) {
+			file = strings.TrimPrefix(file, d.dependsDir)
+		}
 		writer, err := zipWriter.Create(file)
 		_, err = writer.Write(f)
 		Logger.debug.Printf("Zipper wrote file: %s", file)
@@ -178,25 +186,41 @@ func (d *CRLambda) zipper(output string, files chan string) {
 	}
 }
 
+func (d *CRLambda) addFileFiltered(fullpath string, f os.FileInfo, err error) error {
+	relativePath := strings.TrimPrefix(fullpath, path.Clean(d.codeDir)+"/")
+	for _, ignore := range d.ignoreFiles {
+		if strings.HasPrefix(relativePath, ignore) {
+			Logger.debug.Printf("Skipping (has prefix %s): %s\n", ignore, relativePath)
+			return nil
+		}
+	}
+	return d.addFile(fullpath, f, err)
+}
+
 func (d *CRLambda) addFile(fullpath string, f os.FileInfo, err error) error {
 	relativePath := strings.TrimPrefix(fullpath, path.Clean(d.codeDir)+"/")
-
-	if f.IsDir() == true || strings.HasPrefix(relativePath, ".") {
-		Logger.debug.Printf("Skipping: %s\n", relativePath)
+	if f.IsDir() == true {
+		Logger.debug.Printf("Skipping (is a directory): %s\n", relativePath)
 		return nil
 	}
-
 	Logger.info.Printf("Found file: %s\n", relativePath)
 	d.sourceFiles <- relativePath
 	return nil
 }
 
-func (d *CRLambda) zipAndUploadCode(dir string) {
+func (d *CRLambda) zipAndUploadCode(dir string, dependsDir string) {
 	d.zipFile = path.Join(".coderun", "lambda-"+RandString(20)+".zip")
-	Logger.debug.Printf("Zipping directory: %s", dir)
 
 	d.sourceFiles = make(chan string)
-	go func() { filepath.Walk(dir, d.addFile); close(d.sourceFiles) }()
+	go func() {
+		Logger.debug.Printf("Zipping directory: %s", dir)
+		filepath.Walk(dir, d.addFileFiltered)
+		if dependsDir != "" {
+			Logger.debug.Printf("Zipping dependency directory: %s", dependsDir)
+			filepath.Walk(dependsDir, d.addFile)
+		}
+		close(d.sourceFiles)
+	}()
 	d.zipper(d.zipFile, d.sourceFiles)
 
 	Logger.info.Printf("Done zipping")

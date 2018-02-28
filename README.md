@@ -21,6 +21,7 @@ Running code in an isolated environment should be stupid easy
 
 ## Example
 ```
+DOCKER_API_VERSION=1.35 #TODO: figure out why this is needed
 % go run ../../main.go -l info -- ./test.py
 INFO2018/02/11 21:27:02 Pulling image: python:3
 INFO2018/02/11 21:27:03 Running: [python -m venv .coderun/venv]

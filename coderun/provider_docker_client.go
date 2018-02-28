@@ -1,6 +1,7 @@
 package coderun
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -26,10 +27,16 @@ type CRDocker struct {
 
 func (d CRDocker) Pull(image string) {
 	Logger.info.Printf("Pulling image: %s", image)
-	_, err := d.Client.ImagePull(context.Background(), image, types.ImagePullOptions{})
+	resp, err := d.Client.ImagePull(context.Background(), image, types.ImagePullOptions{})
+	defer resp.Close()
 	if err != nil {
 		panic(err)
 	}
+
+	rd := bufio.NewReader(resp)
+
+	rd.WriteTo(os.Stdout)
+
 	Logger.debug.Printf("Done pulling image: %s", image)
 }
 

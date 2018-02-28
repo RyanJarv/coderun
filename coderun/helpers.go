@@ -5,11 +5,13 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/kr/pty"
 )
@@ -103,7 +105,7 @@ func RandString(length int) string {
 	return string(b)
 }
 
-func runProviderStep(step string, provider *Provider, r RunEnvironment, p IProviderEnv) {
+func runProviderStep(step string, provider *Provider, r *RunEnvironment, p IProviderEnv) {
 	switch {
 	case step == "deploy" && provider.Deploy != nil:
 		provider.Deploy(*provider, r, p)
@@ -112,4 +114,20 @@ func runProviderStep(step string, provider *Provider, r RunEnvironment, p IProvi
 	default:
 		Logger.warn.Printf("No step %s registered for provider %s", step, provider.Name)
 	}
+}
+
+func readIgnoreFile(f string) []string {
+	var ignoreFiles []string
+	file, err := ioutil.ReadFile(f)
+	if os.IsNotExist(err) {
+		ignoreFiles = []string{}
+	} else if err != nil {
+		log.Fatal(err)
+	} else {
+		ignoreFiles := make([]string, len(file))
+		for i, l := range file {
+			ignoreFiles[i] = strings.Trim(string(l), " \t")
+		}
+	}
+	return ignoreFiles
 }

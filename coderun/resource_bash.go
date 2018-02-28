@@ -8,14 +8,14 @@ func BashResource() *Resource {
 	}
 }
 
-func bashRegister(r RunEnvironment, p IProviderEnv) bool {
+func bashRegister(r *RunEnvironment, p IProviderEnv) bool {
 	return MatchCommandOrExt(r.Cmd, "bash", ".sh")
 }
 
-func bashSetup(r RunEnvironment, p IProviderEnv) {
-	p.(dockerProviderEnv).CRDocker.Pull("bash")
+func bashSetup(r *RunEnvironment, p IProviderEnv) {
+	r.CRDocker.Pull("bash")
 }
 
-func bashRun(r RunEnvironment, p IProviderEnv) {
-	p.(dockerProviderEnv).CRDocker.Run(dockerRunConfig{Image: "ubuntu", DestDir: "/usr/src/myapp", SourceDir: Cwd(), Cmd: append([]string{"bash"}, r.Cmd...)})
+func bashRun(r *RunEnvironment, p IProviderEnv) {
+	r.CRDocker.Run(dockerRunConfig{Image: "ubuntu", DestDir: "/usr/src/myapp", SourceDir: Cwd(), Cmd: append([]string{"bash"}, r.Cmd...)})
 }

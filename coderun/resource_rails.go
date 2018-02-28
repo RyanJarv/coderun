@@ -16,7 +16,7 @@ func RailsResource() *Resource {
 	}
 }
 
-func railsRegister(r RunEnvironment, p IProviderEnv) bool {
+func railsRegister(r *RunEnvironment, p IProviderEnv) bool {
 	match, err := regexp.MatchString(".*/?rails (.+ )?server.*", strings.Join(r.Cmd, " "))
 	if err != nil {
 		log.Fatal(err)
@@ -24,17 +24,17 @@ func railsRegister(r RunEnvironment, p IProviderEnv) bool {
 	return match
 }
 
-func railsSetup(r RunEnvironment, p IProviderEnv) {
-	p.(dockerProviderEnv).CRDocker.Pull("ruby:2.3")
+func railsSetup(r *RunEnvironment, p IProviderEnv) {
+	r.CRDocker.Pull("ruby:2.3")
 
-	image := p.(dockerProviderEnv).CRDocker.getOrBuildImage("ruby:2.3", []string{"sh", "-c", "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs && bundler config --local path .coderun/vendor/bundle"})
+	image := r.CRDocker.getOrBuildImage("ruby:2.3", []string{"sh", "-c", "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs && bundler config --local path .coderun/vendor/bundle"})
 
 	if _, err := os.Stat("./Gemfile"); err == nil {
-		p.(dockerProviderEnv).CRDocker.Run(dockerRunConfig{Image: image, DestDir: "/usr/src/myapp", SourceDir: Cwd(), Cmd: []string{"bundler", "install", "--path", ".coderun/vendor/bundle"}})
+		r.CRDocker.Run(dockerRunConfig{Image: image, DestDir: "/usr/src/myapp", SourceDir: Cwd(), Cmd: []string{"bundler", "install", "--path", ".coderun/vendor/bundle"}})
 	}
 }
 
-func railsRun(r RunEnvironment, p IProviderEnv) {
+func railsRun(r *RunEnvironment, p IProviderEnv) {
 	var port int = 3000
 	var err error
 	for i, arg := range r.Cmd {
@@ -50,6 +50,6 @@ func railsRun(r RunEnvironment, p IProviderEnv) {
 			}
 		}
 	}
-	image := p.(dockerProviderEnv).CRDocker.getImageName()
-	p.(dockerProviderEnv).CRDocker.Run(dockerRunConfig{Image: image, DestDir: "/usr/src/myapp", SourceDir: Cwd(), Port: port, Cmd: append(append([]string{"bundler", "exec"}, r.Cmd...), "-b", "0.0.0.0")})
+	image := r.CRDocker.getImageName()
+	r.CRDocker.Run(dockerRunConfig{Image: image, DestDir: "/usr/src/myapp", SourceDir: Cwd(), Port: port, Cmd: append(append([]string{"bundler", "exec"}, r.Cmd...), "-b", "0.0.0.0")})
 }

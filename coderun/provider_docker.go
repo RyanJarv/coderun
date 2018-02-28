@@ -2,15 +2,10 @@ package coderun
 
 import (
 	"log"
-
-	"github.com/docker/docker/client"
 )
 
 type dockerProviderEnv struct {
 	IProviderEnv
-	CRDocker ICRDocker
-	cli      *client.Client
-	Exec     func(...string) string
 }
 
 func DockerProvider() *Provider {
@@ -21,6 +16,7 @@ func DockerProvider() *Provider {
 		Setup:            dockerSetup,
 		Run:              dockerRun,
 		Resources: map[string]*Resource{
+			"pip":    PipResource(),
 			"python": PythonResource(),
 			"ruby":   RubyResource(),
 			"go":     GoResource(),
@@ -33,40 +29,41 @@ func DockerProvider() *Provider {
 	}
 }
 
-func dockerRegister(r RunEnvironment) bool {
+func dockerRegister(r *RunEnvironment) bool {
 	return true
 }
 
-func dockerResourceRegister(p Provider, runEnv RunEnvironment) {
+func dockerResourceRegister(p Provider, runEnv *RunEnvironment) {
 	for n, r := range p.Resources {
 		if r.Register(runEnv, p) {
 			p.RegisteredResources[n] = r
 		}
 	}
-	if len(p.RegisteredResources) != 1 {
-		log.Fatalf("Found %d registered docker resources, should be one.\n", len(p.RegisteredResources))
+	if len(p.RegisteredResources) <= 1 {
+		log.Fatalf("Didn't find any registered docker resources")
 	}
 }
 
-func dockerSetup(provider Provider, r RunEnvironment) IProviderEnv {
-	cli, err := client.NewEnvClient()
-	if err != nil {
-		panic(err)
-	}
-	providerEnv := dockerProviderEnv{
-		CRDocker: &CRDocker{Client: cli},
-		cli:      cli,
-		Exec:     Exec,
-	}
+func dockerSetup(provider Provider, r *RunEnvironment) IProviderEnv {
+	providerEnv := dockerProviderEnv{}
+
 	for _, resource := range provider.RegisteredResources {
-		resource.Setup(r, providerEnv)
+		if resource.Setup == nil {
+			Logger.info.Printf("No step Setup found for resource %s", resource.Name)
+		} else {
+			resource.Setup(r, providerEnv)
+		}
 	}
 	return providerEnv
 }
 
-func dockerRun(provider Provider, r RunEnvironment, p IProviderEnv) {
-	providerEnv := p.(dockerProviderEnv)
+func dockerRun(provider Provider, r *RunEnvironment, p IProviderEnv) {
+	providerEnv := r
 	for _, resource := range provider.RegisteredResources {
-		resource.Run(r, providerEnv)
+		if resource.Run == nil {
+			Logger.info.Printf("No step Run found for resource %s", resource.Name)
+		} else {
+			resource.Run(r, providerEnv)
+		}
 	}
 }
