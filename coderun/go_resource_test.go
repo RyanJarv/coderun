@@ -13,15 +13,15 @@ type GoSuite struct {
 	suite.Suite
 	Resource       *Resource
 	CRDockerMock   *CRDockerMock
-	RunEnvironment RunEnvironment
+	RunEnvironment *RunEnvironment
 	ProviderEnv    dockerProviderEnv
 }
 
 func (suite *GoSuite) SetupTest() {
 	suite.Resource = GoResource()
 	suite.CRDockerMock = &CRDockerMock{}
-	suite.RunEnvironment = RunEnvironment{}
-	suite.ProviderEnv = dockerProviderEnv{CRDocker: suite.CRDockerMock}
+	suite.RunEnvironment = &RunEnvironment{CRDocker: suite.CRDockerMock}
+	suite.ProviderEnv = dockerProviderEnv{}
 }
 
 func (suite *GoSuite) TestRegister() {

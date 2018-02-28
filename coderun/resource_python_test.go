@@ -13,15 +13,15 @@ type PythonSuite struct {
 	suite.Suite
 	Resource       *Resource
 	CRDockerMock   *CRDockerMock
-	RunEnvironment RunEnvironment
+	RunEnvironment *RunEnvironment
 	ProviderEnv    dockerProviderEnv
 }
 
 func (suite *PythonSuite) SetupTest() {
 	suite.Resource = PythonResource()
 	suite.CRDockerMock = &CRDockerMock{}
-	suite.RunEnvironment = RunEnvironment{}
-	suite.ProviderEnv = dockerProviderEnv{CRDocker: suite.CRDockerMock}
+	suite.RunEnvironment = &RunEnvironment{CRDocker: suite.CRDockerMock}
+	suite.ProviderEnv = dockerProviderEnv{}
 }
 
 func (suite *PythonSuite) TestRegister() {

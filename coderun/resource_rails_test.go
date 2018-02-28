@@ -14,7 +14,7 @@ type RailsSuite struct {
 	Resource       *Resource
 	CRDockerMock   *CRDockerMock
 	ExecMock       *ExecMock
-	RunEnvironment RunEnvironment
+	RunEnvironment *RunEnvironment
 	ProviderEnv    IProviderEnv
 }
 
@@ -22,8 +22,8 @@ func (suite *RailsSuite) SetupTest() {
 	suite.Resource = RailsResource()
 	suite.CRDockerMock = &CRDockerMock{}
 	suite.ExecMock = &ExecMock{}
-	suite.RunEnvironment = RunEnvironment{}
-	suite.ProviderEnv = dockerProviderEnv{CRDocker: suite.CRDockerMock, Exec: suite.ExecMock.Exec}
+	suite.RunEnvironment = &RunEnvironment{CRDocker: suite.CRDockerMock, Exec: suite.ExecMock.Exec}
+	suite.ProviderEnv = dockerProviderEnv{}
 }
 
 func (suite *RailsSuite) TestRegister() {

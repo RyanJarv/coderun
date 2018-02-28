@@ -13,15 +13,15 @@ type BashSuite struct {
 	suite.Suite
 	Resource       *Resource
 	CRDockerMock   *CRDockerMock
-	RunEnvironment RunEnvironment
+	RunEnvironment *RunEnvironment
 	ProviderEnv    IProviderEnv
 }
 
 func (suite *BashSuite) SetupTest() {
 	suite.Resource = BashResource()
 	suite.CRDockerMock = &CRDockerMock{}
-	suite.RunEnvironment = RunEnvironment{}
-	suite.ProviderEnv = dockerProviderEnv{CRDocker: suite.CRDockerMock}
+	suite.RunEnvironment = &RunEnvironment{CRDocker: suite.CRDockerMock}
+	suite.ProviderEnv = dockerProviderEnv{}
 }
 
 func (suite *BashSuite) TestRegister() {
