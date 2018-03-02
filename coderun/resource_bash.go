@@ -1,21 +1,30 @@
 package coderun
 
-func BashResource() *Resource {
-	return &Resource{
-		Register: bashRegister,
-		Setup:    bashSetup,
-		Run:      bashRun,
-	}
+func NewBashResource() IDockerResource {
+	return &BashResource{}
 }
 
-func bashRegister(r *RunEnvironment, p IProviderEnv) bool {
-	return MatchCommandOrExt(r.Cmd, "bash", ".sh")
+type BashResource struct {
+	IResource
 }
 
-func bashSetup(r *RunEnvironment, p IProviderEnv) {
-	r.CRDocker.Pull("bash")
+func (r *BashResource) Name() string {
+	return "ubuntu"
 }
 
-func bashRun(r *RunEnvironment, p IProviderEnv) {
-	r.CRDocker.Run(dockerRunConfig{Image: "ubuntu", DestDir: "/usr/src/myapp", SourceDir: Cwd(), Cmd: append([]string{"bash"}, r.Cmd...)})
+func (r *BashResource) Register(e *RunEnvironment) bool {
+	return MatchCommandOrExt(e.Cmd, "bash", ".sh")
+}
+
+func (r *BashResource) Setup(e *RunEnvironment) {
+	e.CRDocker.Pull("ubuntu")
+}
+
+func (r *BashResource) Run(e *RunEnvironment) {
+	e.CRDocker.Run(dockerRunConfig{
+		Image:     "ubuntu",
+		DestDir:   "/usr/src/myapp",
+		SourceDir: Cwd(),
+		Cmd:       append([]string{"bash"}, e.Cmd...),
+	})
 }

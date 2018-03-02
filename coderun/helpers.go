@@ -105,17 +105,6 @@ func RandString(length int) string {
 	return string(b)
 }
 
-func runProviderStep(step string, provider *Provider, r *RunEnvironment, p IProviderEnv) {
-	switch {
-	case step == "deploy" && provider.Deploy != nil:
-		provider.Deploy(*provider, r, p)
-	case step == "run" && provider.Run != nil:
-		provider.Run(*provider, r, p)
-	default:
-		Logger.warn.Printf("No step %s registered for provider %s", step, provider.Name)
-	}
-}
-
 func readIgnoreFile(f string) []string {
 	var ignoreFiles []string
 	file, err := ioutil.ReadFile(f)

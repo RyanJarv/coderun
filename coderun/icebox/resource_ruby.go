@@ -1,5 +1,7 @@
 package coderun
 
+import "log"
+
 func RubyResource() *Resource {
 	return &Resource{
 		Register: rubyRegister,
@@ -14,6 +16,7 @@ func rubyRegister(r *RunEnvironment, p IProviderEnv) bool {
 }
 
 func rubySetup(r *RunEnvironment, p IProviderEnv) {
+	log.Printf("11")
 	r.CRDocker.Pull("ruby:2.3")
 }
 

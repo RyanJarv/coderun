@@ -23,6 +23,11 @@ import (
 
 type CRDocker struct {
 	Client *client.Client
+	//fileResourceConfig []FileResourceConfig
+}
+
+func (d CRDocker) RegisterFileResource(path string, opener func() io.ReadCloser) {
+
 }
 
 func (d CRDocker) Pull(image string) {

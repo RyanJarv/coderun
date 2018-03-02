@@ -1,5 +1,5 @@
-hash: c4b1f1805e7e3e6b38b6a1a97929f07f9274d8a43d34899e6415f3b6325c0068
-updated: 2018-02-27T18:02:47.650646299-06:00
+hash: f54b7e3f4d9bdbc2f30a8ee6918952dc8762b7e9851666156d61bfd36af7d663
+updated: 2018-02-28T19:23:52.862238006-06:00
 imports:
 - name: github.com/aws/aws-sdk-go
   version: 9ed0c8de252f04ac45a65358377103d5a1aa2d92
@@ -71,6 +71,13 @@ imports:
   version: 1adfc126b41513cc696b209667c8656ea7aac67c
   subpackages:
   - proto
+- name: github.com/hanwen/go-fuse
+  version: 5690be47d614355a22931c129e1075c25a62e9ac
+  subpackages:
+  - fuse
+  - fuse/nodefs
+  - fuse/pathfs
+  - splice
 - name: github.com/jmespath/go-jmespath
   version: 0b12d6b521d83fc7f755e7cfc1b1fbdd35a01a74
 - name: github.com/kr/pty
@@ -97,6 +104,7 @@ imports:
 - name: golang.org/x/sys
   version: 5513e650ab47a692d3a036d49be8fa52ddd09b65
   subpackages:
+  - unix
   - windows
 testImports:
 - name: github.com/davecgh/go-spew

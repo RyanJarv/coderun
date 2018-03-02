@@ -19,8 +19,8 @@ func AWSLambdaProvider() *Provider {
 		Setup:               awsLambdaSetup,
 		Deploy:              awsLambdaDeploy,
 		Run:                 awsLambdaRun,
-		RegisteredResources: map[string]*Resource{},
-		Resources: map[string]*Resource{
+		RegisteredResources: map[string]IResource{},
+		Resources: map[string]IResource{
 			"awsLambdaPython": AWSLambdaPython(),
 		},
 		ProviderEnv: &awsLambdaProviderEnv{},
@@ -30,9 +30,9 @@ func awsLambdaRegister(r *RunEnvironment) bool {
 	return false
 }
 
-func awsLambdaResourceRegister(p Provider, runEnv *RunEnvironment) {
+func awsLambdaResourceRegister(p *Provider, runEnv *RunEnvironment) {
 	for name, r := range p.Resources {
-		if r.Register(runEnv, p) {
+		if r.(Resource).Register(runEnv, p) {
 			Logger.info.Printf("Registering resource %s", name)
 			p.RegisteredResources[name] = r
 		}
@@ -43,7 +43,7 @@ func awsLambdaResourceRegister(p Provider, runEnv *RunEnvironment) {
 	}
 }
 
-func awsLambdaSetup(provider Provider, r *RunEnvironment) IProviderEnv {
+func awsLambdaSetup(p *Provider, r *RunEnvironment) IProviderEnv {
 	awsConfig := &aws.Config{
 		Region: aws.String("us-east-1"),
 	}
@@ -53,39 +53,39 @@ func awsLambdaSetup(provider Provider, r *RunEnvironment) IProviderEnv {
 		CRLambda: crLambda,
 	}
 
-	for _, resource := range provider.RegisteredResources {
-		if resource.Setup == nil {
-			Logger.info.Printf("No step Setup found for resource %s", resource.Name)
+	for _, resource := range p.RegisteredResources {
+		if resource.(Resource).Setup == nil {
+			Logger.info.Printf("No step Setup found for resource %s", resource.(Resource).Name)
 		} else {
-			resource.Setup(r, providerEnv)
+			resource.(Resource).Setup(r, providerEnv)
 		}
 	}
 
 	return providerEnv
 }
 
-func awsLambdaDeploy(provider Provider, r *RunEnvironment, p IProviderEnv) {
+func awsLambdaDeploy(provider *Provider, r *RunEnvironment, p IProviderEnv) {
 	providerEnv := p.(awsLambdaProviderEnv)
 
 	for _, resource := range provider.RegisteredResources {
-		if resource.Deploy == nil {
-			Logger.info.Printf("No step Deploy found for resource %s", resource.Name)
+		if resource.(Resource).Deploy == nil {
+			Logger.info.Printf("No step Deploy found for resource %s", resource.(Resource).Name)
 		} else {
 			Logger.info.Printf("Running lambda resource %s", provider.Name)
-			resource.Deploy(r, providerEnv)
+			resource.(Resource).Deploy(r, providerEnv)
 		}
 	}
 }
 
-func awsLambdaRun(provider Provider, r *RunEnvironment, p IProviderEnv) {
+func awsLambdaRun(provider *Provider, r *RunEnvironment, p IProviderEnv) {
 	providerEnv := p.(awsLambdaProviderEnv)
 
 	for _, resource := range provider.RegisteredResources {
-		if resource.Run == nil {
-			Logger.info.Printf("No step Run found for resource %s", resource.Name)
+		if resource.(Resource).Run == nil {
+			Logger.info.Printf("No step Run found for resource %s", resource.(Resource).Name)
 		} else {
 			Logger.info.Printf("Running lambda resource %s", provider.Name)
-			resource.Run(r, providerEnv)
+			resource.(Resource).Run(r, providerEnv)
 		}
 	}
 }
