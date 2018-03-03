@@ -1,9 +1,5 @@
 package coderun
 
-import (
-	"log"
-)
-
 type IDockerResource interface {
 	IResource
 	Setup(*RunEnvironment)
@@ -32,52 +28,18 @@ func (p *DockerProvider) Name() string {
 }
 
 func (p *DockerProvider) Register(e *RunEnvironment) bool {
-	return true
-}
-
-func (p *DockerProvider) Resources() interface{} {
-	return p.resources
-}
-
-func (p *DockerProvider) RegisteredResources() interface{} {
-	return p.registeredResources
+	registered := false
+	for name, r := range p.resources {
+		if r.Register(e, p) {
+			Logger.info.Printf("Registering resource %s", name)
+			p.registeredResources[name] = r
+			registered = true
+		}
+	}
+	return registered
 }
 
 func (p *DockerProvider) Trigger(e *RunEnvironment) {
 	Logger.info.Printf("Running step `Run` for provider %s", p.Name())
 	p.Run(e)
-}
-
-func (p *DockerProvider) ResourceRegister(e *RunEnvironment) {
-	for name, r := range p.resources {
-		if r.Register(e) {
-			Logger.info.Printf("Registering resource %s", name)
-			p.registeredResources[name] = r
-		}
-	}
-	if len(p.registeredResources) < 1 {
-		log.Fatalf("Didn't find any registered docker resources")
-	}
-}
-
-func (p *DockerProvider) Setup(e *RunEnvironment) {
-	for _, resource := range p.registeredResources {
-		if resource.Setup == nil {
-			Logger.info.Printf("No step Setup found for resource %s", resource.Name())
-		} else {
-			resource.Setup(e)
-		}
-	}
-}
-
-//func (p *DockerProvider) Deploy
-
-func (p *DockerProvider) Run(e *RunEnvironment) {
-	for _, resource := range p.registeredResources {
-		if resource.Run == nil {
-			Logger.info.Printf("No step Run found for resource %s", resource.Name())
-		} else {
-			resource.Run(e)
-		}
-	}
 }

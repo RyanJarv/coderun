@@ -1,8 +1,6 @@
 package coderun
 
 import (
-	"errors"
-	"fmt"
 	"path"
 
 	"github.com/docker/docker/client"
@@ -12,8 +10,8 @@ type IProvider interface {
 	Name() string
 	Register(*RunEnvironment) bool
 	ResourceRegister(*RunEnvironment)
-	Resources() interface{}
-	RegisteredResources() interface{}
+	Resources() []IResource
+	RegisteredResources() map[string]IResource
 	Setup(*RunEnvironment)
 	Deploy(*RunEnvironment)
 	Run(*RunEnvironment)
@@ -23,7 +21,8 @@ type ProviderHookFunc func(IProvider, *RunEnvironment)
 
 type IResource interface {
 	Name() string
-	Register(*RunEnvironment) bool
+	Register(*RunEnvironment, IProvider) bool
+	RegisteredSteps() map[string]StepCallback
 }
 
 type RunEnvironment struct {
@@ -39,6 +38,7 @@ type RunEnvironment struct {
 	Flags       map[string]*string
 	CRDocker    ICRDocker
 	Exec        func(...string) string
+	Registry    *Registry
 }
 
 type IProviderEnv interface {
@@ -76,52 +76,17 @@ func CreateRunEnvironment() *RunEnvironment {
 		Flags:               make(map[string]*string),
 		CRDocker:            &CRDocker{Client: cli},
 		Exec:                Exec,
+		Registry:            NewRegistry(),
 	}
 }
 
 func Setup(runEnv *RunEnvironment) (*RunEnvironment, error) {
-	if p, _ := runEnv.Flags["provider"]; *p != "" {
-		Logger.info.Printf("Registering provider %s", *p)
-		runEnv.RegisteredProviders[*p] = runEnv.Providers[*p]
-	} else {
-		for n, p := range runEnv.Providers {
-			//These probably should just be classes
-			if p.Register(runEnv) {
-				Logger.info.Printf("Registering provider %s", p.Name())
-				runEnv.RegisteredProviders[n] = p
-			}
-		}
+	for _, p := range runEnv.Providers {
+		p.Register(runEnv)
 	}
 
-	for _, p := range runEnv.RegisteredProviders {
-		p.ResourceRegister(runEnv)
-	}
-
-	if len(runEnv.RegisteredProviders) <= 0 {
-		return nil, errors.New(fmt.Sprintf("No providers found for this command"))
-	}
-
-	for _, p := range runEnv.RegisteredProviders {
-		if p.Setup == nil {
-			Logger.debug.Printf("No step `Setup` registered for provider `%s`", p.Name())
-		} else {
-			p.Setup(runEnv)
-		}
-	}
-	for _, p := range runEnv.RegisteredProviders {
-		if p.Deploy == nil {
-			Logger.debug.Printf("No step `Deploy` registered for provider `%s`", p.Name())
-		} else {
-			p.Deploy(runEnv)
-		}
-	}
-	for _, p := range runEnv.RegisteredProviders {
-		if p.Run == nil {
-			Logger.debug.Printf("No step `Run` registered for provider `%s`", p.Name())
-		} else {
-			p.Run(runEnv)
-		}
-	}
+	runEnv.Registry.Run(runEnv)
+	Logger.info.Printf("Done running steps")
 
 	return runEnv, nil
 }

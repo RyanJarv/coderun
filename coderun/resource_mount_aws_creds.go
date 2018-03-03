@@ -16,9 +16,12 @@ type AwsCredsMountResource struct {
 
 func (cr *AwsCredsMountResource) Name() string { return "awsCreds" }
 
-func (cr *AwsCredsMountResource) Path() string { return "~/.aws" }
+func (cr *AwsCredsMountResource) Register(r *RunEnvironment, p IProvider) bool {
+	r.Registry.AddAt(SetupStep, &StepCallback{Step: "Setup", Provider: p.Name(), Resource: cr.Name(), Callback: cr.Setup})
+	return true
+}
 
-func (cr *AwsCredsMountResource) Register(r *RunEnvironment) bool { return true }
+func (cr *AwsCredsMountResource) Path() string { return "~/.aws" }
 
 func (cr *AwsCredsMountResource) Fs() *CoderunFs { return cr.fs }
 
