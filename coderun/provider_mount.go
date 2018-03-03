@@ -14,7 +14,6 @@ type IMountResource interface {
 }
 
 type IFileResource interface {
-	Name() string
 	Path() string
 	Setup(*RunEnvironment)
 	Open() io.Reader

@@ -30,8 +30,13 @@ func (cr *AwsCredsMountResource) Fs() *CoderunFs { return cr.fs }
 func (cr *AwsCredsMountResource) Setup(e *RunEnvironment, callback *StepCallback, currentStep *StepCallback) {
 	Logger.debug.Printf("awsMountCreds setup")
 	cr.fs = NewCoderunFs(cr.Path())
-	cr.fs.Setup()
 	cr.fs.AddFileResource(&credFile{})
+	cr.fs.Setup()
+	go cr.fs.Serve()
+	e.Registry.AddAt(TeardownStep, &StepCallback{
+		Step:     "Unmount",
+		Provider: callback.Provider,
+		Callback: func(*RunEnvironment, *StepCallback, *StepCallback) { cr.fs.server.Unmount() }})
 	e.Registry.AddBefore( //Need to register this after the Fs is set up
 		&StepSearch{Provider: regexp.MustCompile("docker"), Resource: regexp.MustCompile(".*"), Step: regexp.MustCompile("Run")},
 		&StepCallback{Step: "ConnectDocker", Provider: callback.Provider, Callback: cr.fs.ConnectDocker})

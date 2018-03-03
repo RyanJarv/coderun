@@ -64,8 +64,6 @@ func (d CRDocker) Run(c dockerRunConfig) {
 		m = append(m, mount.Mount{Type: "bind", Source: l, Target: r})
 	}
 
-	Logger.debug.Printf("Docker mount config: %v", m)
-
 	Logger.info.Printf("Running: %s", c.Cmd)
 	if len(portBindings) > 0 {
 		Logger.info.Printf("Bindings: %v", portBindings)
@@ -111,7 +109,6 @@ func (d CRDocker) Run(c dockerRunConfig) {
 		panic(err)
 	}
 
-	time.Sleep(1000 * time.Second)
 	statusCh, errCh := d.Client.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
 	select {
 	case err := <-errCh:

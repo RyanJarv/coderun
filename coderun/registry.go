@@ -6,6 +6,7 @@ const (
 	SetupStep = iota * 100
 	DeployStep
 	RunStep
+	TeardownStep
 )
 
 const (
@@ -35,7 +36,7 @@ type StepSearch struct {
 
 func NewRegistry() *Registry {
 	return &Registry{
-		Levels: make([][]*StepCallback, 400),
+		Levels: make([][]*StepCallback, 499),
 		Before: []*StepCallbackSearch{},
 		After:  []*StepCallbackSearch{},
 	}
@@ -52,7 +53,6 @@ func (r *Registry) AddAt(l int, s *StepCallback) {
 }
 
 func (r *Registry) AddBefore(search *StepSearch, s *StepCallback) {
-	Logger.info.Printf("************* %s %s %s", search.Provider, s.Resource, s.Step)
 	Logger.info.Printf("Adding step %s.%s.%s before %s.%s.%s", s.Provider.Name(), getNameOrEmpty(s.Resource), s.Step, search.Provider, search.Resource, search.Step)
 	r.Before = append(r.Before, &StepCallbackSearch{Search: search, Callback: s})
 }
