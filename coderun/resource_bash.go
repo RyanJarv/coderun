@@ -14,19 +14,19 @@ func (r *BashResource) Name() string {
 
 func (r *BashResource) Register(e *RunEnvironment, p IProvider) bool {
 	if MatchCommandOrExt(e.Cmd, "bash", ".sh") {
-		e.Registry.AddAt(SetupStep, &StepCallback{Step: "Setup", Provider: p.Name(), Resource: r.Name(), Callback: r.Setup})
-		e.Registry.AddAt(SetupStep, &StepCallback{Step: "Run", Provider: p.Name(), Resource: r.Name(), Callback: r.Run})
+		e.Registry.AddAt(SetupStep, &StepCallback{Step: "Setup", Provider: p, Resource: r, Callback: r.Setup})
+		e.Registry.AddAt(SetupStep, &StepCallback{Step: "Run", Provider: p, Resource: r, Callback: r.Run})
 		return true
 	} else {
 		return false
 	}
 }
 
-func (r *BashResource) Setup(e *RunEnvironment) {
+func (r *BashResource) Setup(e *RunEnvironment, c *StepCallback) {
 	e.CRDocker.Pull("ubuntu")
 }
 
-func (r *BashResource) Run(e *RunEnvironment) {
+func (r *BashResource) Run(e *RunEnvironment, c *StepCallback) {
 	e.CRDocker.Run(dockerRunConfig{
 		Image:     "ubuntu",
 		DestDir:   "/usr/src/myapp",

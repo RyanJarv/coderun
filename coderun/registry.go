@@ -16,9 +16,9 @@ const (
 type Register map[int]StepCallback
 
 type StepCallback struct {
-	Callback func(*RunEnvironment)
-	Provider string
-	Resource string
+	Callback func(*RunEnvironment, *StepCallback)
+	Provider IProvider
+	Resource IResource
 	Step     string
 }
 
@@ -63,8 +63,8 @@ func (r *Registry) Run(e *RunEnvironment) {
 	for order, steps := range r.Levels {
 		for _, step := range steps {
 			r.runMatching(e, r.Before, step)
-			Logger.info.Printf("Order %d: Running %s for resource %s, provider %s", order, step.Step, step.Resource, step.Provider)
-			step.Callback(e)
+			Logger.info.Printf("Runlevel %d: Running %s for resource %s, provider %s", order, step.Step, step.Resource, step.Provider)
+			step.Callback(e, step)
 			r.runMatching(e, r.After, step)
 		}
 	}
@@ -74,9 +74,9 @@ func (r *Registry) runMatching(e *RunEnvironment, callbackSearchList []*StepCall
 	for _, callbackSearch := range callbackSearchList {
 		c := callbackSearch.Callback
 		s := callbackSearch.Search
-		if s.Provider.MatchString(step.Provider) && s.Resource.MatchString(step.Resource) && s.Step.MatchString(step.Step) {
+		if s.Provider.MatchString(step.Provider.Name()) && s.Resource.MatchString(step.Resource.Name()) && s.Step.MatchString(step.Step) {
 			Logger.info.Printf("Running %s.%s.%s because it was registered with %s.%s.%s", c.Provider, c.Resource, c.Step, step.Provider, step.Resource, step.Step)
-			c.Callback(e)
+			c.Callback(e, c)
 		}
 	}
 }

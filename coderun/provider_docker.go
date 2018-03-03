@@ -2,8 +2,8 @@ package coderun
 
 type IDockerResource interface {
 	IResource
-	Setup(*RunEnvironment)
-	Run(*RunEnvironment)
+	Setup(*RunEnvironment, *StepCallback)
+	Run(*RunEnvironment, *StepCallback)
 }
 
 type DockerResources map[string]IResource
@@ -37,9 +37,4 @@ func (p *DockerProvider) Register(e *RunEnvironment) bool {
 		}
 	}
 	return registered
-}
-
-func (p *DockerProvider) Trigger(e *RunEnvironment) {
-	Logger.info.Printf("Running step `Run` for provider %s", p.Name())
-	p.Run(e)
 }

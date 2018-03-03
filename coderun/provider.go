@@ -9,12 +9,6 @@ import (
 type IProvider interface {
 	Name() string
 	Register(*RunEnvironment) bool
-	ResourceRegister(*RunEnvironment)
-	Resources() []IResource
-	RegisteredResources() map[string]IResource
-	Setup(*RunEnvironment)
-	Deploy(*RunEnvironment)
-	Run(*RunEnvironment)
 }
 
 type ProviderHookFunc func(IProvider, *RunEnvironment)
@@ -22,7 +16,6 @@ type ProviderHookFunc func(IProvider, *RunEnvironment)
 type IResource interface {
 	Name() string
 	Register(*RunEnvironment, IProvider) bool
-	RegisteredSteps() map[string]StepCallback
 }
 
 type RunEnvironment struct {
