@@ -22,12 +22,12 @@ import (
 )
 
 type CRDocker struct {
-	Client *client.Client
-	//fileResourceConfig []FileResourceConfig
+	Client  *client.Client
+	volumes map[string]string
 }
 
-func (d CRDocker) RegisterFileResource(path string, opener func() io.ReadCloser) {
-
+func (d CRDocker) RegisterMount(localPath, dockerPath string) {
+	d.volumes[localPath] = dockerPath
 }
 
 func (d CRDocker) Pull(image string) {
@@ -59,6 +59,12 @@ func (d CRDocker) Run(c dockerRunConfig) {
 	}
 
 	m := []mount.Mount{{Type: "bind", Source: c.SourceDir, Target: c.DestDir}}
+	for l, r := range d.volumes {
+		Logger.info.Printf("Attaching bind mount %s to %s", l, r)
+		m = append(m, mount.Mount{Type: "bind", Source: l, Target: r})
+	}
+
+	Logger.debug.Printf("Docker mount config: %v", m)
 
 	Logger.info.Printf("Running: %s", c.Cmd)
 	if len(portBindings) > 0 {
@@ -105,6 +111,7 @@ func (d CRDocker) Run(c dockerRunConfig) {
 		panic(err)
 	}
 
+	time.Sleep(1000 * time.Second)
 	statusCh, errCh := d.Client.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
 	select {
 	case err := <-errCh:

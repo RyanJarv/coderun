@@ -3,13 +3,12 @@ package coderun
 import (
 	"io"
 	"log"
-	"regexp"
 )
 
 type IMountResource interface {
 	Name() string
 	Register(*RunEnvironment, IProvider) bool
-	Setup(*RunEnvironment, *StepCallback)
+	Setup(*RunEnvironment, *StepCallback, *StepCallback)
 	Path() string
 	Fs() *CoderunFs
 }
@@ -27,13 +26,11 @@ func NewMountProvider() IProvider {
 		resources: []IMountResource{
 			NewAwsCredsMountResource(),
 		},
-		registeredResources: []IMountResource{},
 	}
 }
 
 type MountProvider struct {
-	resources           []IMountResource
-	registeredResources []IMountResource
+	resources []IMountResource
 }
 
 func (p *MountProvider) Name() string {
@@ -42,21 +39,10 @@ func (p *MountProvider) Name() string {
 
 func (p *MountProvider) Register(e *RunEnvironment) bool {
 	registered := false
-	for _, r := range p.registeredResources {
+	for _, r := range p.resources {
 		if r.Register(e, p) == true {
 			registered = true
-			e.Registry.AddBefore(
-				&StepSearch{Provider: regexp.MustCompile("docker"), Step: regexp.MustCompile(".*"), Resource: regexp.MustCompile(".*")},
-				&StepCallback{Step: "Setup", Provider: p, Callback: p.connectDocker})
 		}
 	}
 	return registered
-}
-
-func (p *MountProvider) connectDocker(runEnv *RunEnvironment, c *StepCallback) {
-	docker, ok := runEnv.RegisteredProviders["docker"]
-	if ok != true {
-		Logger.info.Printf("Docker resource is not registered, will not set up shares", docker)
-	}
-
 }

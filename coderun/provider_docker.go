@@ -2,8 +2,9 @@ package coderun
 
 type IDockerResource interface {
 	IResource
-	Setup(*RunEnvironment, *StepCallback)
-	Run(*RunEnvironment, *StepCallback)
+	Setup(*RunEnvironment, *StepCallback, *StepCallback)
+	Run(*RunEnvironment, *StepCallback, *StepCallback)
+	RegisterMount(*RunEnvironment, string, string)
 }
 
 type DockerResources map[string]IResource

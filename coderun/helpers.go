@@ -120,3 +120,15 @@ func readIgnoreFile(f string) []string {
 	}
 	return ignoreFiles
 }
+
+type INameable interface {
+	Name() string
+}
+
+func getNameOrEmpty(s INameable) string {
+	n := ""
+	if s != nil {
+		n = s.Name() //Resource can be nil
+	}
+	return n
+}

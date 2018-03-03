@@ -14,7 +14,7 @@ import (
 func NewCoderunFs(remotePath string) *CoderunFs {
 	log.Printf("Creating new CoderunFs")
 	fs := &CoderunFs{
-		RemotePath:    remotePath,
+		remotePath:    remotePath,
 		FileResources: map[string]IFileResource{},
 	}
 	return fs
@@ -22,18 +22,21 @@ func NewCoderunFs(remotePath string) *CoderunFs {
 
 type CoderunFs struct {
 	pathfs.FileSystem
-	RemotePath    string
-	LocalPath     string
+	remotePath    string
+	localPath     string
 	FileResources map[string]IFileResource
 }
 
 func (fs *CoderunFs) Setup() {
+	Logger.debug.Printf("Got to coderun setup")
 	os.MkdirAll("/tmp/coderun", 0700)
 	tmpdir, err := ioutil.TempDir("/tmp/coderun", "fs")
 	if err != nil {
 		Logger.error.Fatal(err)
 	}
-	fs.LocalPath = tmpdir
+	fs.localPath = tmpdir
+	Logger.debug.Printf("CoderunFs local path is %s", fs.localPath)
+	Logger.debug.Printf("CoderunFs tmpdir is %s", tmpdir)
 	nfs := pathfs.NewPathNodeFs(&CoderunFs{FileSystem: pathfs.NewDefaultFileSystem()}, nil)
 	server, _, err := nodefs.MountRoot(tmpdir, nfs.Root(), nil)
 	if err != nil {
@@ -43,7 +46,7 @@ func (fs *CoderunFs) Setup() {
 }
 
 func (fs *CoderunFs) AddFileResource(r IFileResource) {
-	fs.FileResources[r.Name()] = r
+	fs.FileResources[r.Path()] = r
 }
 
 func (fs *CoderunFs) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
@@ -75,7 +78,7 @@ func (fs *CoderunFs) OpenDir(name string, context *fuse.Context) (c []fuse.DirEn
 
 func (fs *CoderunFs) Open(name string, flags uint32, context *fuse.Context) (file nodefs.File, code fuse.Status) {
 	resource, ok := fs.FileResources[name]
-	if ok == true {
+	if ok == false {
 		return nil, fuse.ENOENT
 	}
 	if flags&fuse.O_ANYWRITE != 0 {
@@ -85,4 +88,9 @@ func (fs *CoderunFs) Open(name string, flags uint32, context *fuse.Context) (fil
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(handle)
 	return nodefs.NewDataFile(buf.Bytes()), fuse.OK
+}
+
+func (fs *CoderunFs) ConnectDocker(runEnv *RunEnvironment, s *StepCallback, step *StepCallback) {
+	Logger.info.Printf("localPath: %v, remotePath: %v", fs.localPath, fs.remotePath)
+	step.Resource.(IDockerResource).RegisterMount(runEnv, fs.localPath, fs.remotePath)
 }

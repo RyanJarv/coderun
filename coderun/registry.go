@@ -16,7 +16,7 @@ const (
 type Register map[int]StepCallback
 
 type StepCallback struct {
-	Callback func(*RunEnvironment, *StepCallback)
+	Callback func(*RunEnvironment, *StepCallback, *StepCallback)
 	Provider IProvider
 	Resource IResource
 	Step     string
@@ -52,19 +52,24 @@ func (r *Registry) AddAt(l int, s *StepCallback) {
 }
 
 func (r *Registry) AddBefore(search *StepSearch, s *StepCallback) {
+	Logger.info.Printf("************* %s %s %s", search.Provider, s.Resource, s.Step)
+	Logger.info.Printf("Adding step %s.%s.%s before %s.%s.%s", s.Provider.Name(), getNameOrEmpty(s.Resource), s.Step, search.Provider, search.Resource, search.Step)
 	r.Before = append(r.Before, &StepCallbackSearch{Search: search, Callback: s})
 }
 
 func (r *Registry) AddAfter(search *StepSearch, s *StepCallback) {
+	Logger.debug.Printf("Adding step %s.%s.%s after %s.%s.%s", s.Provider.Name(), getNameOrEmpty(s.Resource), s.Step, search.Provider, search.Resource, s.Step)
 	r.After = append(r.After, &StepCallbackSearch{Search: search, Callback: s})
 }
 
 func (r *Registry) Run(e *RunEnvironment) {
 	for order, steps := range r.Levels {
 		for _, step := range steps {
+			Logger.debug.Printf("Searching for callbacks to run before %s.%s.%s", step.Provider.Name(), getNameOrEmpty(step.Resource), step.Step)
 			r.runMatching(e, r.Before, step)
-			Logger.info.Printf("Runlevel %d: Running %s for resource %s, provider %s", order, step.Step, step.Resource, step.Provider)
-			step.Callback(e, step)
+			Logger.info.Printf("Runlevel %d: Running %s for resource %s, provider %s", order, step.Step, getNameOrEmpty(step.Resource), step.Provider.Name())
+			step.Callback(e, step, step)
+			Logger.debug.Printf("Searching for callbacks to run after %s.%s.%s", step.Provider.Name(), getNameOrEmpty(step.Resource), step.Step)
 			r.runMatching(e, r.After, step)
 		}
 	}
@@ -74,9 +79,10 @@ func (r *Registry) runMatching(e *RunEnvironment, callbackSearchList []*StepCall
 	for _, callbackSearch := range callbackSearchList {
 		c := callbackSearch.Callback
 		s := callbackSearch.Search
-		if s.Provider.MatchString(step.Provider.Name()) && s.Resource.MatchString(step.Resource.Name()) && s.Step.MatchString(step.Step) {
-			Logger.info.Printf("Running %s.%s.%s because it was registered with %s.%s.%s", c.Provider, c.Resource, c.Step, step.Provider, step.Resource, step.Step)
-			c.Callback(e, c)
+		if s.Provider.MatchString(step.Provider.Name()) && s.Resource.MatchString(getNameOrEmpty(step.Resource)) && s.Step.MatchString(step.Step) {
+			Logger.info.Printf("Running %s.%s.%s because it was registered with %s.%s.%s", c.Provider.Name(), getNameOrEmpty(c.Resource), c.Step, step.Provider.Name(), getNameOrEmpty(step.Resource), step.Step)
+			Logger.info.Printf("Callback: %v", c)
+			c.Callback(e, c, step)
 		}
 	}
 }

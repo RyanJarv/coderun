@@ -22,11 +22,15 @@ func (r *BashResource) Register(e *RunEnvironment, p IProvider) bool {
 	}
 }
 
-func (r *BashResource) Setup(e *RunEnvironment, c *StepCallback) {
+func (r *BashResource) RegisterMount(e *RunEnvironment, local string, remote string) {
+	e.CRDocker.RegisterMount(local, remote)
+}
+
+func (r *BashResource) Setup(e *RunEnvironment, callback *StepCallback, currentStep *StepCallback) {
 	e.CRDocker.Pull("ubuntu")
 }
 
-func (r *BashResource) Run(e *RunEnvironment, c *StepCallback) {
+func (r *BashResource) Run(e *RunEnvironment, callback *StepCallback, currentStep *StepCallback) {
 	e.CRDocker.Run(dockerRunConfig{
 		Image:     "ubuntu",
 		DestDir:   "/usr/src/myapp",

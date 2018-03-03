@@ -16,6 +16,7 @@ type dockerRunConfig struct {
 type ICRDocker interface {
 	Pull(string)
 	Run(dockerRunConfig)
+	RegisterMount(string, string)
 	newImageName() string
 	getOrBuildImage(string, ...[]string) string
 	getImageName() string

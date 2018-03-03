@@ -67,7 +67,7 @@ func CreateRunEnvironment() *RunEnvironment {
 		Name:                path.Base(Cwd()),
 		EntryPoint:          "lambda_handler",
 		Flags:               make(map[string]*string),
-		CRDocker:            &CRDocker{Client: cli},
+		CRDocker:            &CRDocker{Client: cli, volumes: map[string]string{}},
 		Exec:                Exec,
 		Registry:            NewRegistry(),
 	}
