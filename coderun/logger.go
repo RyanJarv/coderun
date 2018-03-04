@@ -39,10 +39,10 @@ func SetupLogger(level string) *LoggerType {
 		panic("Not a valid log setting")
 	}
 
-	l.debug = log.New(debugOut, "DEBUG", log.Ldate|log.Ltime)
-	l.info = log.New(infoOut, "INFO", log.Ldate|log.Ltime)
-	l.warn = log.New(warnOut, "WARN", log.Ldate|log.Ltime)
-	l.error = log.New(errorOut, "ERROR", log.Ldate|log.Ltime)
+	l.debug = log.New(debugOut, "[DEBUG] ", log.Ldate|log.Ltime)
+	l.info = log.New(infoOut, "[INFO]  ", log.Ldate|log.Ltime)
+	l.warn = log.New(warnOut, "[WARN]  ", log.Ldate|log.Ltime)
+	l.error = log.New(errorOut, "[ERROR] ", log.Ldate|log.Ltime)
 
 	l.debug.Print("Set up logger")
 	return l

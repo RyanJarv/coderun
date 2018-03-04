@@ -1,7 +1,6 @@
 package coderun
 
 import (
-	"log"
 	"path"
 
 	"github.com/docker/docker/client"
@@ -77,7 +76,6 @@ func CreateRunEnvironment() *RunEnvironment {
 }
 
 func Setup(runEnv *RunEnvironment) (*RunEnvironment, error) {
-	log.Printf("Registry is %v", runEnv.Registry)
 	for _, p := range runEnv.Providers {
 		p.Register()
 	}

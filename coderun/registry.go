@@ -83,7 +83,6 @@ func (r *Registry) runMatching(callbackSearchList []*StepCallbackSearch, step *S
 		s := callbackSearch.Search
 		if s.Provider.MatchString(step.Provider.Name()) && s.Resource.MatchString(getNameOrEmpty(step.Resource)) && s.Step.MatchString(step.Step) {
 			Logger.info.Printf("Running %s.%s.%s because it was registered with %s.%s.%s", c.Provider.Name(), getNameOrEmpty(c.Resource), c.Step, step.Provider.Name(), getNameOrEmpty(step.Resource), step.Step)
-			Logger.info.Printf("Callback: %v", c)
 			c.Callback(c, step)
 		}
 	}

@@ -1,7 +1,10 @@
 package coderun
 
 import (
+	"bufio"
+	"fmt"
 	"io"
+	"os"
 	"regexp"
 	"strings"
 )
@@ -50,5 +53,24 @@ func (cf *credFile) Path() string { return "credentials" }
 func (cf *credFile) Setup() { return }
 
 func (cf *credFile) Open() io.Reader {
-	return strings.NewReader("asdf")
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Printf("\n***************************************************")
+	fmt.Printf("\n!!! Script is attempting to read ~/.aws/credentials")
+	fmt.Printf("\n***************************************************")
+	fmt.Printf("\nIs this expected? [yes/no] ")
+	text, err := reader.ReadString('\n')
+	fmt.Printf("\n")
+	text = strings.TrimRight(text, "\n")
+	if err != nil {
+		Logger.error.Fatal(err)
+	}
+
+	var resp io.Reader
+	if text == "yes" {
+		resp = strings.NewReader("***super secret keys stored on the host machine***\n")
+	} else {
+		Logger.warn.Printf("Restricting access to ~/.aws/credentials")
+		resp = strings.NewReader("")
+	}
+	return resp
 }

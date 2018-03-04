@@ -18,7 +18,6 @@ func NewCoderunFs(remotePath string) CoderunFs {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("CoderunFs local path is %s", tmpdir)
 
 	crfs := CoderunFs{
 		FileSystem:    pathfs.NewDefaultFileSystem(),
@@ -57,9 +56,6 @@ func (fs CoderunFs) Serve() {
 func (fs CoderunFs) AddFileResource(r IFileResource) {
 	Logger.debug.Printf("Running CoderunFs.AddFileResource with %s", r.Path())
 	fs.fileResources[r.Path()] = r
-	for n, v := range fs.fileResources {
-		log.Printf("AddFileResource File Exists: %s = %v", n, v)
-	}
 }
 
 func (fs CoderunFs) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
@@ -109,7 +105,5 @@ func (fs CoderunFs) Open(name string, flags uint32, context *fuse.Context) (file
 
 //fs needs to be a pointer because it gets registered as a step before setup is done
 func (fs *CoderunFs) ConnectDocker(s *StepCallback, step *StepCallback) {
-	Logger.info.Printf("fs: %v", fs)
-	Logger.info.Printf("localPath: %v, remotePath: %v", fs.localPath, fs.remotePath)
 	step.Resource.(IDockerResource).RegisterMount(fs.localPath, fs.remotePath)
 }
