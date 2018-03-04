@@ -1,6 +1,9 @@
 package coderun
 
-import "regexp"
+import (
+	"log"
+	"regexp"
+)
 
 const (
 	SetupStep = iota * 100
@@ -17,7 +20,7 @@ const (
 type Register map[int]StepCallback
 
 type StepCallback struct {
-	Callback func(*RunEnvironment, *StepCallback, *StepCallback)
+	Callback func(*StepCallback, *StepCallback)
 	Provider IProvider
 	Resource IResource
 	Step     string
@@ -49,6 +52,7 @@ type Registry struct {
 }
 
 func (r *Registry) AddAt(l int, s *StepCallback) {
+	log.Printf("Called with %v %v %v", r, l, s)
 	r.Levels[l] = append(r.Levels[l], s)
 }
 
@@ -62,27 +66,27 @@ func (r *Registry) AddAfter(search *StepSearch, s *StepCallback) {
 	r.After = append(r.After, &StepCallbackSearch{Search: search, Callback: s})
 }
 
-func (r *Registry) Run(e *RunEnvironment) {
+func (r *Registry) Run() {
 	for order, steps := range r.Levels {
 		for _, step := range steps {
 			Logger.debug.Printf("Searching for callbacks to run before %s.%s.%s", step.Provider.Name(), getNameOrEmpty(step.Resource), step.Step)
-			r.runMatching(e, r.Before, step)
+			r.runMatching(r.Before, step)
 			Logger.info.Printf("Runlevel %d: Running %s for resource %s, provider %s", order, step.Step, getNameOrEmpty(step.Resource), step.Provider.Name())
-			step.Callback(e, step, step)
+			step.Callback(step, step)
 			Logger.debug.Printf("Searching for callbacks to run after %s.%s.%s", step.Provider.Name(), getNameOrEmpty(step.Resource), step.Step)
-			r.runMatching(e, r.After, step)
+			r.runMatching(r.After, step)
 		}
 	}
 }
 
-func (r *Registry) runMatching(e *RunEnvironment, callbackSearchList []*StepCallbackSearch, step *StepCallback) {
+func (r *Registry) runMatching(callbackSearchList []*StepCallbackSearch, step *StepCallback) {
 	for _, callbackSearch := range callbackSearchList {
 		c := callbackSearch.Callback
 		s := callbackSearch.Search
 		if s.Provider.MatchString(step.Provider.Name()) && s.Resource.MatchString(getNameOrEmpty(step.Resource)) && s.Step.MatchString(step.Step) {
 			Logger.info.Printf("Running %s.%s.%s because it was registered with %s.%s.%s", c.Provider.Name(), getNameOrEmpty(c.Resource), c.Step, step.Provider.Name(), getNameOrEmpty(step.Resource), step.Step)
 			Logger.info.Printf("Callback: %v", c)
-			c.Callback(e, c, step)
+			c.Callback(c, step)
 		}
 	}
 }

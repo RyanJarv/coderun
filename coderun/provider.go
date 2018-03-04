@@ -1,6 +1,7 @@
 package coderun
 
 import (
+	"log"
 	"path"
 
 	"github.com/docker/docker/client"
@@ -8,14 +9,14 @@ import (
 
 type IProvider interface {
 	Name() string
-	Register(*RunEnvironment) bool
+	Register() bool
 }
 
 type ProviderHookFunc func(IProvider, *RunEnvironment)
 
 type IResource interface {
 	Name() string
-	Register(*RunEnvironment, IProvider) bool
+	Register(IProvider) bool
 }
 
 type RunEnvironment struct {
@@ -53,10 +54,11 @@ func CreateRunEnvironment() *RunEnvironment {
 		)...,
 	)
 
-	return &RunEnvironment{
+	var runEnv *RunEnvironment
+	runEnv = &RunEnvironment{
 		Providers: map[string]IProvider{
-			"mount":  NewMountProvider(),
-			"docker": NewDockerProvider(),
+			"mount":  NewMountProvider(&runEnv),
+			"docker": NewDockerProvider(&runEnv),
 			//"lambda": NewAWSLambdaProvider(),
 		},
 		//Registered: map[string]map[*Provider]*Resource{},
@@ -71,14 +73,16 @@ func CreateRunEnvironment() *RunEnvironment {
 		Exec:                Exec,
 		Registry:            NewRegistry(),
 	}
+	return runEnv
 }
 
 func Setup(runEnv *RunEnvironment) (*RunEnvironment, error) {
+	log.Printf("Registry is %v", runEnv.Registry)
 	for _, p := range runEnv.Providers {
-		p.Register(runEnv)
+		p.Register()
 	}
 
-	runEnv.Registry.Run(runEnv)
+	runEnv.Registry.Run()
 	Logger.info.Printf("Done running steps")
 
 	return runEnv, nil

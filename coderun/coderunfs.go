@@ -11,7 +11,7 @@ import (
 	"github.com/hanwen/go-fuse/fuse/pathfs"
 )
 
-func NewCoderunFs(remotePath string) *CoderunFs {
+func NewCoderunFs(remotePath string) CoderunFs {
 	os.MkdirAll("/tmp/coderun", 0700)
 
 	tmpdir, err := ioutil.TempDir("/tmp/coderun", "fs")
@@ -20,7 +20,7 @@ func NewCoderunFs(remotePath string) *CoderunFs {
 	}
 	log.Printf("CoderunFs local path is %s", tmpdir)
 
-	crfs := &CoderunFs{
+	crfs := CoderunFs{
 		FileSystem:    pathfs.NewDefaultFileSystem(),
 		remotePath:    remotePath,
 		localPath:     tmpdir,
@@ -46,15 +46,15 @@ type CoderunFs struct {
 	nfs           *pathfs.PathNodeFs
 }
 
-func (fs *CoderunFs) Setup() {
+func (fs CoderunFs) Setup() {
 }
 
-func (fs *CoderunFs) Serve() {
+func (fs CoderunFs) Serve() {
 	Logger.debug.Printf("Running CoderunFs.Serve")
 	fs.server.Serve()
 }
 
-func (fs *CoderunFs) AddFileResource(r IFileResource) {
+func (fs CoderunFs) AddFileResource(r IFileResource) {
 	Logger.debug.Printf("Running CoderunFs.AddFileResource with %s", r.Path())
 	fs.fileResources[r.Path()] = r
 	for n, v := range fs.fileResources {
@@ -62,7 +62,7 @@ func (fs *CoderunFs) AddFileResource(r IFileResource) {
 	}
 }
 
-func (fs *CoderunFs) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
+func (fs CoderunFs) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
 	Logger.debug.Printf("Running CoderunFs.GetAdttr with %s", name)
 	if _, ok := fs.fileResources[name]; ok == true {
 		Logger.debug.Printf("Found file %s", name)
@@ -78,7 +78,7 @@ func (fs *CoderunFs) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fu
 	return nil, fuse.ENOENT
 }
 
-func (fs *CoderunFs) OpenDir(name string, context *fuse.Context) (c []fuse.DirEntry, code fuse.Status) {
+func (fs CoderunFs) OpenDir(name string, context *fuse.Context) (c []fuse.DirEntry, code fuse.Status) {
 	Logger.debug.Printf("Running CoderunFs.opendir with %s", name)
 	if name == "" {
 		dir := make([]fuse.DirEntry, 0, len(fs.fileResources))
@@ -92,7 +92,7 @@ func (fs *CoderunFs) OpenDir(name string, context *fuse.Context) (c []fuse.DirEn
 	return nil, fuse.ENOENT
 }
 
-func (fs *CoderunFs) Open(name string, flags uint32, context *fuse.Context) (file nodefs.File, code fuse.Status) {
+func (fs CoderunFs) Open(name string, flags uint32, context *fuse.Context) (file nodefs.File, code fuse.Status) {
 	Logger.debug.Printf("Running CoderunFs.open with %s", name)
 	resource, ok := fs.fileResources[name]
 	if ok == false {
@@ -107,7 +107,8 @@ func (fs *CoderunFs) Open(name string, flags uint32, context *fuse.Context) (fil
 	return nodefs.NewDataFile(buf.Bytes()), fuse.OK
 }
 
-func (fs *CoderunFs) ConnectDocker(runEnv *RunEnvironment, s *StepCallback, step *StepCallback) {
+func (fs CoderunFs) ConnectDocker(s *StepCallback, step *StepCallback) {
+	Logger.info.Printf("fs: %v", fs)
 	Logger.info.Printf("localPath: %v, remotePath: %v", fs.localPath, fs.remotePath)
-	step.Resource.(IDockerResource).RegisterMount(runEnv, fs.localPath, fs.remotePath)
+	step.Resource.(IDockerResource).RegisterMount(fs.localPath, fs.remotePath)
 }

@@ -2,17 +2,17 @@ package coderun
 
 type IDockerResource interface {
 	IResource
-	Setup(*RunEnvironment, *StepCallback, *StepCallback)
-	Run(*RunEnvironment, *StepCallback, *StepCallback)
-	RegisterMount(*RunEnvironment, string, string)
+	Setup(*StepCallback, *StepCallback)
+	Run(*StepCallback, *StepCallback)
+	RegisterMount(string, string)
 }
 
 type DockerResources map[string]IResource
 
-func NewDockerProvider() IProvider {
+func NewDockerProvider(r **RunEnvironment) IProvider {
 	return &DockerProvider{
 		resources: map[string]IDockerResource{
-			"bash": NewBashResource(),
+			"bash": NewBashResource(r),
 		},
 		registeredResources: map[string]IDockerResource{},
 	}
@@ -28,10 +28,10 @@ func (p *DockerProvider) Name() string {
 	return "docker"
 }
 
-func (p *DockerProvider) Register(e *RunEnvironment) bool {
+func (p *DockerProvider) Register() bool {
 	registered := false
 	for name, r := range p.resources {
-		if r.Register(e, p) {
+		if r.Register(p) {
 			Logger.info.Printf("Registering resource %s", name)
 			p.registeredResources[name] = r
 			registered = true

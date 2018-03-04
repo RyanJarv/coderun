@@ -7,23 +7,23 @@ import (
 
 type IMountResource interface {
 	Name() string
-	Register(*RunEnvironment, IProvider) bool
-	Setup(*RunEnvironment, *StepCallback, *StepCallback)
+	Register(IProvider) bool
+	Setup(*StepCallback, *StepCallback)
 	Path() string
-	Fs() *CoderunFs
+	Fs() CoderunFs
 }
 
 type IFileResource interface {
 	Path() string
-	Setup(*RunEnvironment)
+	Setup()
 	Open() io.Reader
 }
 
-func NewMountProvider() IProvider {
+func NewMountProvider(r **RunEnvironment) IProvider {
 	log.Printf("Settin up MountProvider")
 	return &MountProvider{
 		resources: []IMountResource{
-			NewAwsCredsMountResource(),
+			NewAwsCredsMountResource(r),
 		},
 	}
 }
@@ -36,10 +36,10 @@ func (p *MountProvider) Name() string {
 	return "mount"
 }
 
-func (p *MountProvider) Register(e *RunEnvironment) bool {
+func (p *MountProvider) Register() bool {
 	registered := false
 	for _, r := range p.resources {
-		if r.Register(e, p) == true {
+		if r.Register(p) == true {
 			registered = true
 		}
 	}
