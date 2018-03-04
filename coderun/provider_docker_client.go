@@ -60,7 +60,7 @@ func (d CRDocker) Run(c dockerRunConfig) {
 
 	m := []mount.Mount{{Type: "bind", Source: c.SourceDir, Target: c.DestDir}}
 	for l, r := range d.volumes {
-		Logger.info.Printf("Attaching bind mount %s to %s", l, r)
+		Logger.info.Printf("Attaching bind mount %v to %v", l, r)
 		m = append(m, mount.Mount{Type: "bind", Source: l, Target: r})
 	}
 

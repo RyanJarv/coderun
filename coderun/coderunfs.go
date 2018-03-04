@@ -107,7 +107,8 @@ func (fs CoderunFs) Open(name string, flags uint32, context *fuse.Context) (file
 	return nodefs.NewDataFile(buf.Bytes()), fuse.OK
 }
 
-func (fs CoderunFs) ConnectDocker(s *StepCallback, step *StepCallback) {
+//fs needs to be a pointer because it gets registered as a step before setup is done
+func (fs *CoderunFs) ConnectDocker(s *StepCallback, step *StepCallback) {
 	Logger.info.Printf("fs: %v", fs)
 	Logger.info.Printf("localPath: %v, remotePath: %v", fs.localPath, fs.remotePath)
 	step.Resource.(IDockerResource).RegisterMount(fs.localPath, fs.remotePath)

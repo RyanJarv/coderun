@@ -1,7 +1,6 @@
 package coderun
 
 import (
-	"log"
 	"regexp"
 )
 
@@ -52,7 +51,6 @@ type Registry struct {
 }
 
 func (r *Registry) AddAt(l int, s *StepCallback) {
-	log.Printf("Called with %v %v %v", r, l, s)
 	r.Levels[l] = append(r.Levels[l], s)
 }
 
