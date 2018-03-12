@@ -1,24 +1,19 @@
 package coderun
 
 import (
-	"io"
-	"net"
 	"regexp"
+	"time"
 
 	dclient "github.com/RyanJarv/dockersnitch/dockersnitch/client"
 )
 
 func NewSnitchDockerResource(r **RunEnvironment) *SnitchDockerResource {
-	return &SnitchDockerResource{env: r, socket: "/var/run/dockersnitch.sock"}
+	return &SnitchDockerResource{env: r}
 }
 
 type SnitchDockerResource struct {
-	env     **RunEnvironment
-	socket  string
-	stream  net.Conn
-	prompts chan string
-	stdin   io.ReadWriteCloser
-	stdout  io.ReadWriteCloser
+	env          **RunEnvironment
+	dockersnitch *CRDocker
 }
 
 func (sd *SnitchDockerResource) Name() string { return "snitchDocker" }
@@ -28,12 +23,15 @@ func (sd *SnitchDockerResource) Register(p IProvider) bool {
 		&StepSearch{Provider: regexp.MustCompile("docker"), Resource: regexp.MustCompile(".*"), Step: regexp.MustCompile("Setup")},
 		&StepCallback{Step: "Setup", Provider: p, Resource: sd, Callback: sd.Setup},
 	)
+	(*sd.env).Registry.AddAt(TeardownStep, &StepCallback{Step: "Teardown", Provider: p, Resource: sd, Callback: sd.Teardown})
 	return true
 }
 
 func (sd *SnitchDockerResource) Setup(callback *StepCallback, currentStep *StepCallback) {
-	go (*sd.env).CRDocker.Run(dockerRunConfig{
+	sd.dockersnitch = NewCRDocker()
+	sd.dockersnitch.Run(dockerRunConfig{
 		Image:      "dockersnitch",
+		Attach:     false,
 		Privileged: true,
 		Port:       33504,
 		HostPort:   33505,
@@ -41,4 +39,8 @@ func (sd *SnitchDockerResource) Setup(callback *StepCallback, currentStep *StepC
 	})
 
 	dclient.Client("tcp", "localhost:33505")
+}
+
+func (sd *SnitchDockerResource) Teardown(callback *StepCallback, currentStep *StepCallback) {
+	sd.dockersnitch.Teardown(4 * time.Second)
 }

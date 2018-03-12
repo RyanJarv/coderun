@@ -1,6 +1,8 @@
 package coderun
 
 import (
+	"os"
+	"os/signal"
 	"regexp"
 )
 
@@ -37,17 +39,21 @@ type StepSearch struct {
 }
 
 func NewRegistry() *Registry {
-	return &Registry{
-		Levels: make([][]*StepCallback, 499),
-		Before: []*StepCallbackSearch{},
-		After:  []*StepCallbackSearch{},
+	r := &Registry{
+		Levels:   make([][]*StepCallback, 499),
+		Before:   []*StepCallbackSearch{},
+		After:    []*StepCallbackSearch{},
+		Teardown: false,
 	}
+	r.onCtrlC()
+	return r
 }
 
 type Registry struct {
-	Levels [][]*StepCallback
-	Before []*StepCallbackSearch
-	After  []*StepCallbackSearch
+	Levels   [][]*StepCallback
+	Before   []*StepCallbackSearch
+	After    []*StepCallbackSearch
+	Teardown bool
 }
 
 func (r *Registry) AddAt(l int, s *StepCallback) {
@@ -64,8 +70,21 @@ func (r *Registry) AddAfter(search *StepSearch, s *StepCallback) {
 	r.After = append(r.After, &StepCallbackSearch{Search: search, Callback: s})
 }
 
+func (r *Registry) onCtrlC() {
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt)
+	go func() {
+		<-ch
+		// Only run teardown steps after this is triggered
+		r.Teardown = true
+	}()
+}
+
 func (r *Registry) Run() {
 	for order, steps := range r.Levels {
+		if r.Teardown && order < TeardownStep {
+			continue
+		}
 		for _, step := range steps {
 			Logger.debug.Printf("Searching for callbacks to run before %s.%s.%s", step.Provider.Name(), getNameOrEmpty(step.Resource), step.Step)
 			r.runMatching(r.Before, step)

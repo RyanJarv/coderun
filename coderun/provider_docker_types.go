@@ -10,6 +10,7 @@ type dockerRunConfig struct {
 	Image       string
 	Port        int
 	HostPort    int
+	Attach      bool
 	Cmd         []string
 	SourceDir   string
 	DestDir     string

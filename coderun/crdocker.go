@@ -21,16 +21,52 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
+type ContainerStatus string
+
+const (
+	Unknown   ContainerStatus = "Unknown"
+	Created   ContainerStatus = "Created"
+	Running   ContainerStatus = "Running"
+	Removing  ContainerStatus = "Removing"
+	Destroyed ContainerStatus = "Destroyed"
+)
+
+func NewCRDocker() *CRDocker {
+	cli, err := client.NewEnvClient()
+	if err != nil {
+		panic(err)
+	}
+
+	r := &CRDocker{
+		Client:  cli,
+		volumes: map[string]string{},
+		Status:  Unknown,
+	}
+	r.onCtrlC()
+	return r
+}
+
 type CRDocker struct {
 	Client  *client.Client
+	Id      string
+	Status  ContainerStatus
 	volumes map[string]string
 }
 
-func (d CRDocker) RegisterMount(localPath, dockerPath string) {
+func (d *CRDocker) onCtrlC() {
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt)
+	go func() {
+		<-ch
+		d.Teardown(5 * time.Second)
+	}()
+}
+
+func (d *CRDocker) RegisterMount(localPath, dockerPath string) {
 	d.volumes[localPath] = dockerPath
 }
 
-func (d CRDocker) Pull(image string) {
+func (d *CRDocker) Pull(image string) {
 	Logger.info.Printf("Pulling image: %s", image)
 	resp, err := d.Client.ImagePull(context.Background(), image, types.ImagePullOptions{})
 	if err != nil {
@@ -45,7 +81,7 @@ func (d CRDocker) Pull(image string) {
 	Logger.debug.Printf("Done pulling image: %s", image)
 }
 
-func (d CRDocker) Run(c dockerRunConfig) {
+func (d *CRDocker) Run(c dockerRunConfig) {
 	ctx := context.Background()
 
 	Logger.info.Printf("Running: %s", c.Cmd)
@@ -66,7 +102,7 @@ func (d CRDocker) Run(c dockerRunConfig) {
 
 	if c.Port != 0 {
 		log.Printf("Setting port %v", c.HostPort)
-		portBindings = nat.PortMap{port: []nat.PortBinding{{HostIP: "0.0.0.0", HostPort: strconv.Itoa(c.HostPort)}}}
+		portBindings = nat.PortMap{port: []nat.PortBinding{{HostIP: "127.0.0.1", HostPort: strconv.Itoa(c.HostPort)}}}
 		config.ExposedPorts = nat.PortSet{
 			port: struct{}{},
 		}
@@ -93,66 +129,95 @@ func (d CRDocker) Run(c dockerRunConfig) {
 	if err != nil {
 		panic(err)
 	}
-	Logger.debug.Printf("Container ID: %s", resp.ID)
+	d.Status = Created
+	d.Id = resp.ID
+	Logger.debug.Printf("Container ID: %s", d.Id)
 	if len(resp.Warnings) > 0 {
 		Logger.warn.Printf("Container Warnings: %s", resp.Warnings)
 	}
 
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, os.Interrupt)
-	go func() {
-		for sig := range ch {
-			Logger.error.Printf("Recieved %s, cleaning up", sig.String())
-			d.Client.ContainerKill(context.Background(), resp.ID, "SIGTERM")
-			timeout := 2 * time.Second
-			d.Client.ContainerStop(context.Background(), resp.ID, &timeout)
-			d.Client.ContainerRemove(context.Background(), resp.ID, types.ContainerRemoveOptions{})
-		}
-	}()
-
 	var errStdout, errStdin error
 
-	hijack, err := d.Client.ContainerAttach(ctx, resp.ID, types.ContainerAttachOptions{Stream: true, Stdin: true, Stdout: true, Stderr: true})
-	if err != nil {
-		panic(err)
-	}
-	defer hijack.Close()
-
-	go func() {
-		if c.Stdout != nil {
-			_, errStdout = io.Copy(c.Stdout, hijack.Reader)
-		} else {
-			_, errStdout = io.Copy(os.Stdout, hijack.Reader)
-		}
-	}()
-
-	if c.Stdin != nil {
-		go func() {
-			_, errStdin = io.Copy(os.Stdin, hijack.Conn)
-		}()
-	}
-
-	if errStdout != nil {
-		log.Fatal("failed to capture stdout or stderr\n")
-	}
-
-	if err := d.Client.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
-		panic(err)
-	}
-
-	statusCh, errCh := d.Client.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
-	select {
-	case err := <-errCh:
+	if c.Attach {
+		hijack, err := d.Client.ContainerAttach(ctx, d.Id, types.ContainerAttachOptions{Stream: true, Stdin: true, Stdout: true, Stderr: true})
 		if err != nil {
 			panic(err)
 		}
-	case <-statusCh:
+		defer hijack.Close()
+
+		go func() {
+			if c.Stdout != nil {
+				_, errStdout = io.Copy(c.Stdout, hijack.Reader)
+			} else {
+				_, errStdout = io.Copy(os.Stdout, hijack.Reader)
+			}
+		}()
+
+		if c.Stdin != nil {
+			go func() {
+				_, errStdin = io.Copy(os.Stdin, hijack.Conn)
+			}()
+		}
+
+		if errStdout != nil {
+			log.Fatal("failed to capture stdout or stderr\n")
+		}
 	}
 
-	d.Client.ContainerRemove(context.Background(), resp.ID, types.ContainerRemoveOptions{})
+	if err := d.Client.ContainerStart(ctx, d.Id, types.ContainerStartOptions{}); err != nil {
+		panic(err)
+	}
+	d.Status = Running
+
+	if c.Attach {
+		statusCh, errCh := d.Client.ContainerWait(ctx, d.Id, container.WaitConditionNotRunning)
+		select {
+		case err := <-errCh:
+			if err != nil {
+				panic(err)
+			}
+		case <-statusCh:
+		}
+	}
 }
 
-func (d CRDocker) buildImageStep(source string, args ...string) string {
+func (d *CRDocker) Teardown(timeout time.Duration) {
+	if d.Status == Destroyed || d.Status == Removing {
+		Logger.debug.Printf("Container is already in %s state, skipping additional teardown", d.Status)
+		return
+	}
+	d.Status = Removing
+	if err := d.Stop(timeout); err != nil {
+		Logger.info.Printf("Could not stop %s in timeout %v, killing", d.Id, timeout)
+		d.Kill()
+	}
+	d.Remove()
+	d.Status = Destroyed
+}
+
+func (d *CRDocker) Kill() {
+	Logger.info.Printf("Killing container %s", d.Id)
+	if err := d.Client.ContainerKill(context.Background(), d.Id, "SIGTERM"); err != nil {
+		Logger.error.Fatal(err)
+	}
+}
+
+func (d *CRDocker) Stop(timeout time.Duration) error {
+	Logger.info.Printf("Stopping container %s", d.Id)
+	if err := d.Client.ContainerStop(context.Background(), d.Id, &timeout); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *CRDocker) Remove() {
+	Logger.info.Printf("Removing container %s", d.Id)
+	if err := d.Client.ContainerRemove(context.Background(), d.Id, types.ContainerRemoveOptions{}); err != nil {
+		Logger.error.Fatal(err)
+	}
+}
+
+func (d *CRDocker) buildImageStep(source string, args ...string) string {
 	var image = d.newImageName()
 	var preimage = d.newImageName()
 	//append so go will let us pass to a function with a single vervadic parameter
@@ -162,11 +227,7 @@ func (d CRDocker) buildImageStep(source string, args ...string) string {
 	return image
 }
 
-func (d CRDocker) Stop(name string) {
-	Exec("/usr/local/bin/docker", "stop", name) // Doesn't necessarily stop on it's own
-}
-
-func (d CRDocker) getImageName() string {
+func (d *CRDocker) getImageName() string {
 	image, err := ioutil.ReadFile(".coderun/dockerimage")
 	if os.IsNotExist(err) {
 		return ""
@@ -176,7 +237,7 @@ func (d CRDocker) getImageName() string {
 	return string(image)
 }
 
-func (d CRDocker) setImageName(image string) {
+func (d *CRDocker) setImageName(image string) {
 	CreateCodeRunDir()
 	err := ioutil.WriteFile(".coderun/dockerimage", []byte(image), 0644)
 	if err != nil {
@@ -184,7 +245,7 @@ func (d CRDocker) setImageName(image string) {
 	}
 }
 
-func (d CRDocker) getOrBuildImage(source string, cmds ...[]string) string {
+func (d *CRDocker) getOrBuildImage(source string, cmds ...[]string) string {
 	var image string
 	if image = d.getImageName(); image == "" {
 		for _, step := range cmds {
@@ -196,11 +257,11 @@ func (d CRDocker) getOrBuildImage(source string, cmds ...[]string) string {
 	return image
 }
 
-func (d CRDocker) newImageName() string {
+func (d *CRDocker) newImageName() string {
 	return fmt.Sprintf("coderun-%s", d.randString())
 }
 
-func (d CRDocker) randString() string {
+func (d *CRDocker) randString() string {
 	rand.Seed(rand.NewSource(time.Now().UnixNano()).Int63())
 	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
 	b := make([]rune, 15)

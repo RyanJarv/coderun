@@ -2,8 +2,6 @@ package coderun
 
 import (
 	"path"
-
-	"github.com/docker/docker/client"
 )
 
 type IProvider interface {
@@ -38,11 +36,6 @@ type IProviderEnv interface {
 }
 
 func CreateRunEnvironment() *RunEnvironment {
-	cli, err := client.NewEnvClient()
-	if err != nil {
-		panic(err)
-	}
-
 	cwd := Cwd()
 
 	ignoreFiles := append(
@@ -69,7 +62,6 @@ func CreateRunEnvironment() *RunEnvironment {
 		Name:                path.Base(Cwd()),
 		EntryPoint:          "lambda_handler",
 		Flags:               make(map[string]*string),
-		CRDocker:            &CRDocker{Client: cli, volumes: map[string]string{}},
 		Exec:                Exec,
 		Registry:            NewRegistry(),
 	}
