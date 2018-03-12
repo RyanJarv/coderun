@@ -2,7 +2,6 @@ package coderun
 
 import (
 	"io"
-	"log"
 )
 
 type IMountResource interface {
@@ -20,7 +19,6 @@ type IFileResource interface {
 }
 
 func NewMountProvider(r **RunEnvironment) IProvider {
-	log.Printf("Settin up MountProvider")
 	return &MountProvider{
 		resources: []IMountResource{
 			NewAwsCredsMountResource(r),

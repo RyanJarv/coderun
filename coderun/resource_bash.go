@@ -10,7 +10,7 @@ type BashResource struct {
 }
 
 func (r *BashResource) Name() string {
-	return "ubuntu"
+	return "bash"
 }
 
 func (r *BashResource) Register(p IProvider) bool {
@@ -28,12 +28,12 @@ func (r *BashResource) RegisterMount(local string, remote string) {
 }
 
 func (r *BashResource) Setup(callback *StepCallback, currentStep *StepCallback) {
-	(*r.env).CRDocker.Pull("ubuntu")
+	(*r.env).CRDocker.Pull("bash")
 }
 
 func (r *BashResource) Run(callback *StepCallback, currentStep *StepCallback) {
 	(*r.env).CRDocker.Run(dockerRunConfig{
-		Image:     "ubuntu",
+		Image:     "bash",
 		DestDir:   "/usr/src/myapp",
 		SourceDir: Cwd(),
 		Cmd:       append([]string{"bash"}, (*r.env).Cmd...),

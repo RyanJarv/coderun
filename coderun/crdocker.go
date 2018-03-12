@@ -47,28 +47,49 @@ func (d CRDocker) Pull(image string) {
 
 func (d CRDocker) Run(c dockerRunConfig) {
 	ctx := context.Background()
-	port := nat.Port(fmt.Sprintf("%v/tcp", c.Port))
+
+	Logger.info.Printf("Running: %s", c.Cmd)
+	config := &container.Config{Image: c.Image, Tty: true, OpenStdin: true, AttachStdin: true, AttachStdout: true, AttachStderr: true}
+	if v := c.Cmd; v != nil {
+		config.Cmd = v
+	}
+	if v := c.DestDir; v != "" {
+		config.WorkingDir = c.DestDir
+	}
 
 	var portBindings nat.PortMap
-	var exposedPorts nat.PortSet
+	port := nat.Port(fmt.Sprintf("%v/tcp", c.Port))
+
+	if c.HostPort == 0 {
+		c.HostPort = c.Port
+	}
+
 	if c.Port != 0 {
-		portBindings = nat.PortMap{port: []nat.PortBinding{{HostIP: "127.0.0.1", HostPort: strconv.Itoa(c.Port)}}}
-		exposedPorts = nat.PortSet{
+		log.Printf("Setting port %v", c.HostPort)
+		portBindings = nat.PortMap{port: []nat.PortBinding{{HostIP: "0.0.0.0", HostPort: strconv.Itoa(c.HostPort)}}}
+		config.ExposedPorts = nat.PortSet{
 			port: struct{}{},
 		}
 	}
 
-	m := []mount.Mount{{Type: "bind", Source: c.SourceDir, Target: c.DestDir}}
-	for l, r := range d.volumes {
-		Logger.info.Printf("Attaching bind mount %v to %v", l, r)
-		m = append(m, mount.Mount{Type: "bind", Source: l, Target: r})
+	hostConfig := &container.HostConfig{PortBindings: portBindings, PidMode: container.PidMode(c.PidMode), Privileged: c.Privileged, NetworkMode: "bridge"}
+	if c.NetworkMode != "" {
+		hostConfig.NetworkMode = container.NetworkMode(c.NetworkMode)
 	}
 
-	Logger.info.Printf("Running: %s", c.Cmd)
-	if len(portBindings) > 0 {
-		Logger.info.Printf("Bindings: %v", portBindings)
+	if v := c.SourceDir; v != "" {
+		Logger.debug.Printf("Sourcedir is %s", v)
+		Logger.debug.Printf("Destdir is %s", c.DestDir)
+		hostConfig.Mounts = []mount.Mount{{Type: "bind", Source: v, Target: c.DestDir}}
 	}
-	resp, err := d.Client.ContainerCreate(ctx, &container.Config{Image: c.Image, Cmd: c.Cmd, WorkingDir: c.DestDir, ExposedPorts: exposedPorts, Tty: true, OpenStdin: true, AttachStdin: true, AttachStdout: true, AttachStderr: true}, &container.HostConfig{Mounts: m, PortBindings: portBindings}, &network.NetworkingConfig{}, d.newImageName())
+	for l, r := range d.volumes {
+		Logger.info.Printf("Attaching bind mount %v to %v", l, r)
+		hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{Type: "bind", Source: l, Target: r})
+	}
+
+	netConfig := &network.NetworkingConfig{}
+
+	resp, err := d.Client.ContainerCreate(ctx, config, hostConfig, netConfig, d.newImageName())
 	if err != nil {
 		panic(err)
 	}
@@ -89,7 +110,7 @@ func (d CRDocker) Run(c dockerRunConfig) {
 		}
 	}()
 
-	var errStdout error
+	var errStdout, errStdin error
 
 	hijack, err := d.Client.ContainerAttach(ctx, resp.ID, types.ContainerAttachOptions{Stream: true, Stdin: true, Stdout: true, Stderr: true})
 	if err != nil {
@@ -98,8 +119,18 @@ func (d CRDocker) Run(c dockerRunConfig) {
 	defer hijack.Close()
 
 	go func() {
-		_, errStdout = io.Copy(os.Stdout, hijack.Reader)
+		if c.Stdout != nil {
+			_, errStdout = io.Copy(c.Stdout, hijack.Reader)
+		} else {
+			_, errStdout = io.Copy(os.Stdout, hijack.Reader)
+		}
 	}()
+
+	if c.Stdin != nil {
+		go func() {
+			_, errStdin = io.Copy(os.Stdin, hijack.Conn)
+		}()
+	}
 
 	if errStdout != nil {
 		log.Fatal("failed to capture stdout or stderr\n")
@@ -170,6 +201,7 @@ func (d CRDocker) newImageName() string {
 }
 
 func (d CRDocker) randString() string {
+	rand.Seed(rand.NewSource(time.Now().UnixNano()).Int63())
 	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
 	b := make([]rune, 15)
 	for i := range b {
