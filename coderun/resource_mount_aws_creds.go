@@ -20,14 +20,18 @@ type AwsCredsMountResource struct {
 func (cr *AwsCredsMountResource) Name() string { return "awsCreds" }
 
 func (cr *AwsCredsMountResource) Register(e IRunEnvironment, p IProvider) bool {
+	if len(e.Cmd()) == 0 {
+		return false
+	}
 	e.Registry().AddAt(SetupStep, &StepCallback{Step: "Setup", Provider: p, Resource: cr, Callback: cr.Setup})
 	e.Registry().AddAt(TeardownStep, &StepCallback{
 		Step:     "Unmount",
 		Provider: p,
+		Resource: cr,
 		Callback: func(*StepCallback, *StepCallback) { cr.fs.server.Unmount() }})
 	e.Registry().AddBefore( //Need to register this after the Fs is set up
 		&StepSearch{Provider: regexp.MustCompile("docker"), Resource: regexp.MustCompile(".*"), Step: regexp.MustCompile("Run")},
-		&StepCallback{Step: "ConnectDocker", Provider: p, Callback: cr.fs.ConnectDocker})
+		&StepCallback{Step: "ConnectDocker", Provider: p, Resource: cr, Callback: cr.fs.ConnectDocker})
 	return true
 }
 

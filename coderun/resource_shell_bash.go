@@ -63,11 +63,14 @@ func (r *ShellBashResource) NewCmd(cmd []string) []string {
 	Logger.debug.Printf("Got command: %s", strings.Join(cmd, " "))
 
 	registered := false
-	for _, bp := range r.providers {
+	for n, bp := range r.providers {
 		Logger.debug.Printf("Calling register on Provider %s", bp.Name())
 		if bp.Register(env) {
 			Logger.debug.Printf("Registered %s", bp.Name())
 			registered = true
+			if n == "docker" {
+				cmd = []string{}
+			}
 		}
 	}
 

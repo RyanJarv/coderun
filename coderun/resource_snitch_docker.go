@@ -12,7 +12,7 @@ func NewSnitchDockerResource(r IRunEnvironment) *SnitchDockerResource {
 }
 
 type SnitchDockerResource struct {
-	dockersnitch *CRDocker
+	dockersnitch **CRDocker
 }
 
 func (sd *SnitchDockerResource) Name() string { return "snitchDocker" }
@@ -27,8 +27,9 @@ func (sd *SnitchDockerResource) Register(e IRunEnvironment, p IProvider) bool {
 }
 
 func (sd *SnitchDockerResource) Setup(callback *StepCallback, currentStep *StepCallback) {
-	sd.dockersnitch = NewCRDocker()
-	sd.dockersnitch.Run(dockerRunConfig{
+	s := NewCRDocker()
+	sd.dockersnitch = &s
+	(*sd.dockersnitch).Run(dockerRunConfig{
 		Image:      "dockersnitch",
 		Attach:     false,
 		Privileged: true,
@@ -40,6 +41,6 @@ func (sd *SnitchDockerResource) Setup(callback *StepCallback, currentStep *StepC
 	dclient.Client("tcp", "localhost:33505")
 }
 
-func (sd *SnitchDockerResource) Teardown(callback *StepCallback, currentStep *StepCallback) {
-	sd.dockersnitch.Teardown(4 * time.Second)
+func (sd SnitchDockerResource) Teardown(callback *StepCallback, currentStep *StepCallback) {
+	(*sd.dockersnitch).Teardown(4 * time.Second)
 }

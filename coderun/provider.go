@@ -62,7 +62,7 @@ func CreateRunEnvironment() *RunEnvironment {
 			"mount":  NewMountProvider(runEnv),
 			"docker": NewDockerProvider(runEnv),
 			"shell":  NewShellProvider(runEnv),
-			//"snitch": NewSnitchProvider(&runEnv),
+			"snitch": NewSnitchProvider(runEnv),
 			//"lambda": NewAWSLambdaProvider(),
 		},
 		//Registered: map[string]map[*Provider]*Resource{},
