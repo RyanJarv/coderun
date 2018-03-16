@@ -49,6 +49,7 @@ func NewCRDocker() *CRDocker {
 type CRDocker struct {
 	Client  *client.Client
 	Id      string
+	Info    types.ContainerJSON
 	Status  ContainerStatus
 	volumes map[string]string
 }
@@ -131,6 +132,7 @@ func (d *CRDocker) Run(c dockerRunConfig) {
 	}
 	d.Status = Created
 	d.Id = resp.ID
+
 	Logger.debug.Printf("Container ID: %s", d.Id)
 	if len(resp.Warnings) > 0 {
 		Logger.warn.Printf("Container Warnings: %s", resp.Warnings)
@@ -168,6 +170,7 @@ func (d *CRDocker) Run(c dockerRunConfig) {
 		panic(err)
 	}
 	d.Status = Running
+	d.inspect()
 
 	if c.Attach {
 		statusCh, errCh := d.Client.ContainerWait(ctx, d.Id, container.WaitConditionNotRunning)
@@ -178,6 +181,15 @@ func (d *CRDocker) Run(c dockerRunConfig) {
 			}
 		case <-statusCh:
 		}
+	}
+}
+
+func (d *CRDocker) inspect() {
+	ctx := context.Background()
+	var err error
+	d.Info, err = d.Client.ContainerInspect(ctx, d.Id)
+	if err != nil {
+		Logger.error.Fatal(err)
 	}
 }
 

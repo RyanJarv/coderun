@@ -10,8 +10,10 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/kr/pty"
 )
@@ -81,6 +83,7 @@ func Exec(c ...string) string {
 }
 
 func MatchCommandOrExt(toSearch []string, cmd string, ext string) bool {
+	Logger.debug.Printf("MatchCommandOrExt got command: %s", strings.Join(toSearch, " "))
 	if len(toSearch) == 0 {
 		return false
 	}
@@ -131,4 +134,68 @@ func getNameOrEmpty(s INameable) string {
 		n = s.Name() //Resource can be nil
 	}
 	return n
+}
+
+func runShell(cmd string, args []string) (*exec.Cmd, *os.File) {
+	shell := exec.Command(cmd, args...)
+
+	shell.Stderr = os.Stderr
+	shell.Stdout = os.Stdout
+
+	Logger.info.Printf("Running command and waiting for it to finish...")
+	tty, err := pty.Start(shell)
+	if err != nil {
+		Logger.error.Fatal("Error start shell", err)
+	}
+
+	// Handle pty size.
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGWINCH)
+	go func() {
+		for range ch {
+			if err := pty.InheritSize(os.Stdin, tty); err != nil {
+				log.Printf("error resizing pty: %s", err)
+			}
+		}
+	}()
+	ch <- syscall.SIGWINCH // Initial resize.
+
+	// Set stdin in raw mode.
+	//p.oldState, err = terminal.MakeRaw(int(os.Stdin.Fd()))
+	//if err != nil {
+	//	panic(err)
+	//}
+
+	go func() {
+		if _, err := io.Copy(os.Stdout, tty); err != nil {
+			Logger.error.Fatal(err)
+		}
+	}()
+
+	Logger.info.Printf("Done with command %s", shell.Args)
+	return shell, tty
+}
+
+func runShellCmds(shell *exec.Cmd, tty *os.File, cb func([]string) []string) {
+	go func() {
+		stdin := bufio.NewReader(os.Stdin)
+		for {
+			line, _, err := stdin.ReadLine()
+			if err != nil {
+				if err == io.EOF {
+					shell.Process.Kill()
+					tty.Close()
+				} else {
+					Logger.error.Fatal(err)
+				}
+			}
+			if cmd := cb(strings.Split(string(line), " ")); len(cmd) > 0 {
+				tty.Write(append([]byte(strings.Join(cmd, " ")), '\n'))
+			}
+		}
+
+	}()
+	Logger.info.Printf("Waiting for shell to exit")
+	shell.Wait()
+	log.Printf("Shell exited")
 }

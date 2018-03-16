@@ -1,26 +1,29 @@
 package coderun
 
-import "time"
+import (
+	"time"
+)
 
-func NewBashResource(r **RunEnvironment) IDockerResource {
-	return &BashResource{env: r}
+func NewBashResource(r IRunEnvironment) IDockerResource {
+	return &BashResource{}
 }
 
 type BashResource struct {
 	IResource
 	bash *CRDocker
-	env  **RunEnvironment
+	env  IRunEnvironment
 }
 
 func (r *BashResource) Name() string {
 	return "bash"
 }
 
-func (r *BashResource) Register(p IProvider) bool {
-	if MatchCommandOrExt((*r.env).Cmd, "bash", ".sh") {
-		(*r.env).Registry.AddAt(SetupStep, &StepCallback{Step: "Setup", Provider: p, Resource: r, Callback: r.Setup})
-		(*r.env).Registry.AddAt(SetupStep, &StepCallback{Step: "Run", Provider: p, Resource: r, Callback: r.Run})
-		(*r.env).Registry.AddAt(TeardownStep, &StepCallback{Step: "Teardown", Provider: p, Resource: r, Callback: r.Teardown})
+func (r *BashResource) Register(e IRunEnvironment, p IProvider) bool {
+	r.env = e
+	if MatchCommandOrExt(e.Cmd(), "bash", ".sh") {
+		e.Registry().AddAt(SetupStep, &StepCallback{Step: "Setup", Provider: p, Resource: r, Callback: r.Setup})
+		e.Registry().AddAt(SetupStep, &StepCallback{Step: "Run", Provider: p, Resource: r, Callback: r.Run})
+		e.Registry().AddAt(TeardownStep, &StepCallback{Step: "Teardown", Provider: p, Resource: r, Callback: r.Teardown})
 		return true
 	} else {
 		return false
@@ -42,7 +45,7 @@ func (r *BashResource) Run(callback *StepCallback, currentStep *StepCallback) {
 		DestDir:   "/usr/src/myapp",
 		Attach:    true,
 		SourceDir: Cwd(),
-		Cmd:       append([]string{"bash"}, (*r.env).Cmd...),
+		Cmd:       append([]string{"bash"}, r.env.Cmd()...),
 	})
 }
 

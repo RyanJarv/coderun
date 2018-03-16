@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	SetupStep = iota * 100
+	SetupStep = iota*100 + 100
 	DeployStep
 	RunStep
 	TeardownStep

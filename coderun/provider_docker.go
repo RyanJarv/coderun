@@ -1,5 +1,7 @@
 package coderun
 
+import "time"
+
 type IDockerResource interface {
 	IResource
 	Setup(*StepCallback, *StepCallback)
@@ -9,7 +11,7 @@ type IDockerResource interface {
 
 type DockerResources map[string]IResource
 
-func NewDockerProvider(r **RunEnvironment) IProvider {
+func NewDockerProvider(r IRunEnvironment) IProvider {
 	return &DockerProvider{
 		resources: map[string]IDockerResource{
 			"bash": NewBashResource(r),
@@ -22,20 +24,40 @@ type DockerProvider struct {
 	IProvider
 	resources           map[string]IDockerResource
 	registeredResources map[string]IDockerResource
+	buildkit            *CRDocker
 }
 
 func (p *DockerProvider) Name() string {
 	return "docker"
 }
 
-func (p *DockerProvider) Register() bool {
+func (p *DockerProvider) Register(e IRunEnvironment) bool {
 	registered := false
 	for name, r := range p.resources {
-		if r.Register(p) {
+		if r.Register(e, p) {
 			Logger.info.Printf("Registering resource %s", name)
 			p.registeredResources[name] = r
 			registered = true
 		}
 	}
+	if registered == true {
+		// This can be removed when buildkit get's merged into docker
+		//(*p.env).Registry.AddAt(SetupStep-10, &StepCallback{Step: "Setup", Provider: p, Callback: p.Setup})
+		//(*p.env).Registry.AddAt(TeardownStep, &StepCallback{Step: "Teardown", Provider: p, Callback: p.Teardown})
+	}
 	return registered
+}
+
+func (p *DockerProvider) Setup(callback *StepCallback, currentStep *StepCallback) {
+	p.buildkit = NewCRDocker()
+	p.buildkit.Run(dockerRunConfig{
+		Image:      "tonistiigi/buildkit",
+		Attach:     false,
+		Privileged: true,
+		Port:       27467,
+	})
+}
+
+func (p *DockerProvider) Teardown(callback *StepCallback, currentStep *StepCallback) {
+	p.buildkit.Teardown(4 * time.Second)
 }

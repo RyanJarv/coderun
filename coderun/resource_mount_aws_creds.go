@@ -9,24 +9,23 @@ import (
 	"strings"
 )
 
-func NewAwsCredsMountResource(r **RunEnvironment) *AwsCredsMountResource {
-	return &AwsCredsMountResource{env: r}
+func NewAwsCredsMountResource(r IRunEnvironment) *AwsCredsMountResource {
+	return &AwsCredsMountResource{}
 }
 
 type AwsCredsMountResource struct {
-	env **RunEnvironment
-	fs  CoderunFs
+	fs CoderunFs
 }
 
 func (cr *AwsCredsMountResource) Name() string { return "awsCreds" }
 
-func (cr *AwsCredsMountResource) Register(p IProvider) bool {
-	(*cr.env).Registry.AddAt(SetupStep, &StepCallback{Step: "Setup", Provider: p, Resource: cr, Callback: cr.Setup})
-	(*cr.env).Registry.AddAt(TeardownStep, &StepCallback{
+func (cr *AwsCredsMountResource) Register(e IRunEnvironment, p IProvider) bool {
+	e.Registry().AddAt(SetupStep, &StepCallback{Step: "Setup", Provider: p, Resource: cr, Callback: cr.Setup})
+	e.Registry().AddAt(TeardownStep, &StepCallback{
 		Step:     "Unmount",
 		Provider: p,
 		Callback: func(*StepCallback, *StepCallback) { cr.fs.server.Unmount() }})
-	(*cr.env).Registry.AddBefore( //Need to register this after the Fs is set up
+	e.Registry().AddBefore( //Need to register this after the Fs is set up
 		&StepSearch{Provider: regexp.MustCompile("docker"), Resource: regexp.MustCompile(".*"), Step: regexp.MustCompile("Run")},
 		&StepCallback{Step: "ConnectDocker", Provider: p, Callback: cr.fs.ConnectDocker})
 	return true

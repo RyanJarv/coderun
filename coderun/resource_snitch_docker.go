@@ -7,23 +7,22 @@ import (
 	dclient "github.com/RyanJarv/dockersnitch/dockersnitch/client"
 )
 
-func NewSnitchDockerResource(r **RunEnvironment) *SnitchDockerResource {
-	return &SnitchDockerResource{env: r}
+func NewSnitchDockerResource(r IRunEnvironment) *SnitchDockerResource {
+	return &SnitchDockerResource{}
 }
 
 type SnitchDockerResource struct {
-	env          **RunEnvironment
 	dockersnitch *CRDocker
 }
 
 func (sd *SnitchDockerResource) Name() string { return "snitchDocker" }
 
-func (sd *SnitchDockerResource) Register(p IProvider) bool {
-	(*sd.env).Registry.AddBefore(
+func (sd *SnitchDockerResource) Register(e IRunEnvironment, p IProvider) bool {
+	e.Registry().AddBefore(
 		&StepSearch{Provider: regexp.MustCompile("docker"), Resource: regexp.MustCompile(".*"), Step: regexp.MustCompile("Setup")},
 		&StepCallback{Step: "Setup", Provider: p, Resource: sd, Callback: sd.Setup},
 	)
-	(*sd.env).Registry.AddAt(TeardownStep, &StepCallback{Step: "Teardown", Provider: p, Resource: sd, Callback: sd.Teardown})
+	e.Registry().AddAt(TeardownStep, &StepCallback{Step: "Teardown", Provider: p, Resource: sd, Callback: sd.Teardown})
 	return true
 }
 
