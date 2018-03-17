@@ -1,3 +1,5 @@
+// +build !solaris
+
 package registry
 
 import (
@@ -19,7 +21,7 @@ import (
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/gorilla/mux"
 
-	"github.com/sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 var (
@@ -173,7 +175,7 @@ func makePublicIndex() *registrytypes.IndexInfo {
 	return index
 }
 
-func makeServiceConfig(mirrors []string, insecureRegistries []string) (*serviceConfig, error) {
+func makeServiceConfig(mirrors []string, insecureRegistries []string) *serviceConfig {
 	options := ServiceOptions{
 		Mirrors:            mirrors,
 		InsecureRegistries: insecureRegistries,

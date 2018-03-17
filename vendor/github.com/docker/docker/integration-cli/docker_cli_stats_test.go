@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/cli"
 	"github.com/go-check/check"
 )
 
@@ -34,7 +33,7 @@ func (s *DockerSuite) TestStatsNoStream(c *check.C) {
 	select {
 	case outerr := <-ch:
 		c.Assert(outerr.err, checker.IsNil, check.Commentf("Error running stats: %v", outerr.err))
-		c.Assert(string(outerr.out), checker.Contains, id[:12]) //running container wasn't present in output
+		c.Assert(string(outerr.out), checker.Contains, id) //running container wasn't present in output
 	case <-time.After(3 * time.Second):
 		statsCmd.Process.Kill()
 		c.Fatalf("stats did not return immediately when not streaming")
@@ -131,7 +130,6 @@ func (s *DockerSuite) TestStatsAllNewContainersAdded(c *check.C) {
 	stdout, err := statsCmd.StdoutPipe()
 	c.Assert(err, check.IsNil)
 	c.Assert(statsCmd.Start(), check.IsNil)
-	go statsCmd.Wait()
 	defer statsCmd.Process.Kill()
 
 	go func() {
@@ -148,7 +146,7 @@ func (s *DockerSuite) TestStatsAllNewContainersAdded(c *check.C) {
 		}
 	}()
 
-	out := runSleepingContainer(c, "-d")
+	out, _ := runSleepingContainer(c, "-d")
 	c.Assert(waitRun(strings.TrimSpace(out)), check.IsNil)
 	id <- strings.TrimSpace(out)[:12]
 
@@ -164,17 +162,17 @@ func (s *DockerSuite) TestStatsFormatAll(c *check.C) {
 	// Windows does not support stats
 	testRequires(c, DaemonIsLinux)
 
-	cli.DockerCmd(c, "run", "-d", "--name=RunningOne", "busybox", "top")
-	cli.WaitRun(c, "RunningOne")
-	cli.DockerCmd(c, "run", "-d", "--name=ExitedOne", "busybox", "top")
-	cli.DockerCmd(c, "stop", "ExitedOne")
-	cli.WaitExited(c, "ExitedOne", 5*time.Second)
+	dockerCmd(c, "run", "-d", "--name=RunningOne", "busybox", "top")
+	c.Assert(waitRun("RunningOne"), check.IsNil)
+	dockerCmd(c, "run", "-d", "--name=ExitedOne", "busybox", "top")
+	dockerCmd(c, "stop", "ExitedOne")
+	c.Assert(waitExited("ExitedOne", 5*time.Second), check.IsNil)
 
-	out := cli.DockerCmd(c, "stats", "--no-stream", "--format", "{{.Name}}").Combined()
+	out, _ := dockerCmd(c, "stats", "--no-stream", "--format", "{{.Name}}")
 	c.Assert(out, checker.Contains, "RunningOne")
 	c.Assert(out, checker.Not(checker.Contains), "ExitedOne")
 
-	out = cli.DockerCmd(c, "stats", "--all", "--no-stream", "--format", "{{.Name}}").Combined()
+	out, _ = dockerCmd(c, "stats", "--all", "--no-stream", "--format", "{{.Name}}")
 	c.Assert(out, checker.Contains, "RunningOne")
 	c.Assert(out, checker.Contains, "ExitedOne")
 }

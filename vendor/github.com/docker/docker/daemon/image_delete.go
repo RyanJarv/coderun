@@ -6,13 +6,11 @@ import (
 	"time"
 
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
-	"github.com/pkg/errors"
 )
 
 type conflictType int
@@ -67,12 +65,9 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 	start := time.Now()
 	records := []types.ImageDeleteResponseItem{}
 
-	imgID, operatingSystem, err := daemon.GetImageIDAndOS(imageRef)
+	imgID, err := daemon.GetImageID(imageRef)
 	if err != nil {
-		return nil, err
-	}
-	if !system.IsOSSupported(operatingSystem) {
-		return nil, errors.Errorf("unable to delete image: %q", system.ErrNotSupportedOperatingSystem)
+		return nil, daemon.imageNotExistToErrcode(err)
 	}
 
 	repoRefs := daemon.referenceStore.References(imgID.Digest())
@@ -89,8 +84,8 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 				// this image would remain "dangling" and since
 				// we really want to avoid that the client must
 				// explicitly force its removal.
-				err := errors.Errorf("conflict: unable to remove repository reference %q (must force) - container %s is using its referenced image %s", imageRef, stringid.TruncateID(container.ID), stringid.TruncateID(imgID.String()))
-				return nil, errdefs.Conflict(err)
+				err := fmt.Errorf("conflict: unable to remove repository reference %q (must force) - container %s is using its referenced image %s", imageRef, stringid.TruncateID(container.ID), stringid.TruncateID(imgID.String()))
+				return nil, errors.NewRequestConflictError(err)
 			}
 		}
 
@@ -289,8 +284,6 @@ func (idc *imageDeleteConflict) Error() string {
 
 	return fmt.Sprintf("conflict: unable to delete %s (%s) - %s", stringid.TruncateID(idc.imgID.String()), forceMsg, idc.message)
 }
-
-func (idc *imageDeleteConflict) Conflict() {}
 
 // imageDeleteHelper attempts to delete the given image from this daemon. If
 // the image has any hard delete conflicts (child images or running containers

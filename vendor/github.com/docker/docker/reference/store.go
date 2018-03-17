@@ -2,6 +2,7 @@ package reference
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,13 +12,12 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
 )
 
 var (
 	// ErrDoesNotExist is returned if a reference is not found in the
 	// store.
-	ErrDoesNotExist notFoundError = "reference does not exist"
+	ErrDoesNotExist = errors.New("reference does not exist")
 )
 
 // An Association is a tuple associating a reference with an image ID.
@@ -26,7 +26,7 @@ type Association struct {
 	ID  digest.Digest
 }
 
-// Store provides the set of methods which can operate on a reference store.
+// Store provides the set of methods which can operate on a tag store.
 type Store interface {
 	References(id digest.Digest) []reference.Named
 	ReferencesByName(ref reference.Named) []Association
@@ -96,7 +96,7 @@ func NewReferenceStore(jsonPath string) (Store, error) {
 // references can be overwritten. This only works for tags, not digests.
 func (store *store) AddTag(ref reference.Named, id digest.Digest, force bool) error {
 	if _, isCanonical := ref.(reference.Canonical); isCanonical {
-		return errors.WithStack(invalidTagError("refusing to create a tag with a digest reference"))
+		return errors.New("refusing to create a tag with a digest reference")
 	}
 	return store.addReference(reference.TagNameOnly(ref), id, force)
 }
@@ -134,7 +134,7 @@ func (store *store) addReference(ref reference.Named, id digest.Digest, force bo
 	refStr := reference.FamiliarString(ref)
 
 	if refName == string(digest.Canonical) {
-		return errors.WithStack(invalidTagError("refusing to create an ambiguous tag using digest algorithm as name"))
+		return errors.New("refusing to create an ambiguous tag using digest algorithm as name")
 	}
 
 	store.mu.Lock()
@@ -151,15 +151,11 @@ func (store *store) addReference(ref reference.Named, id digest.Digest, force bo
 	if exists {
 		// force only works for tags
 		if digested, isDigest := ref.(reference.Canonical); isDigest {
-			return errors.WithStack(conflictingTagError("Cannot overwrite digest " + digested.Digest().String()))
+			return fmt.Errorf("Cannot overwrite digest %s", digested.Digest().String())
 		}
 
 		if !force {
-			return errors.WithStack(
-				conflictingTagError(
-					fmt.Sprintf("Conflict: Tag %s is already set to image %s, if you want to replace it, please use the force option", refStr, oldID.String()),
-				),
-			)
+			return fmt.Errorf("Conflict: Tag %s is already set to image %s, if you want to replace it, please use -f option", refStr, oldID.String())
 		}
 
 		if store.referencesByIDCache[oldID] != nil {
@@ -221,7 +217,7 @@ func (store *store) Delete(ref reference.Named) (bool, error) {
 func (store *store) Get(ref reference.Named) (digest.Digest, error) {
 	if canonical, ok := ref.(reference.Canonical); ok {
 		// If reference contains both tag and digest, only
-		// lookup by digest as it takes precedence over
+		// lookup by digest as it takes precendent over
 		// tag, until tag/digest combos are stored.
 		if _, ok := ref.(reference.Tagged); ok {
 			var err error

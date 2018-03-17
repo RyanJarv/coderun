@@ -11,6 +11,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
@@ -24,8 +25,7 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/registry"
-	digest "github.com/opencontainers/go-digest"
-	"github.com/sirupsen/logrus"
+	"github.com/opencontainers/go-digest"
 )
 
 const (
@@ -67,7 +67,7 @@ func (p *v2Pusher) Push(ctx context.Context) (err error) {
 	}
 
 	if err = p.pushV2Repository(ctx); err != nil {
-		if continueOnError(err, p.endpoint.Mirror) {
+		if continueOnError(err) {
 			return fallbackError{
 				err:         err,
 				confirmedV2: p.pushState.confirmedV2,
@@ -118,12 +118,12 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 		return fmt.Errorf("could not find image from tag %s: %v", reference.FamiliarString(ref), err)
 	}
 
-	rootfs, os, err := p.config.ImageStore.RootFSAndOSFromConfig(imgConfig)
+	rootfs, err := p.config.ImageStore.RootFSFromConfig(imgConfig)
 	if err != nil {
 		return fmt.Errorf("unable to get rootfs for image %s: %s", reference.FamiliarString(ref), err)
 	}
 
-	l, err := p.config.LayerStores[os].Get(rootfs.ChainID())
+	l, err := p.config.LayerStore.Get(rootfs.ChainID())
 	if err != nil {
 		return fmt.Errorf("failed to get top layer from image: %v", err)
 	}
@@ -141,13 +141,12 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 		hmacKey:           hmacKey,
 		repoInfo:          p.repoInfo.Name,
 		ref:               p.ref,
-		endpoint:          p.endpoint,
 		repo:              p.repo,
 		pushState:         &p.pushState,
 	}
 
 	// Loop bounds condition is to avoid pushing the base layer on Windows.
-	for range rootfs.DiffIDs {
+	for i := 0; i < len(rootfs.DiffIDs); i++ {
 		descriptor := descriptorTemplate
 		descriptor.layer = l
 		descriptor.checkedDigests = make(map[digest.Digest]struct{})
@@ -240,7 +239,6 @@ type v2PushDescriptor struct {
 	hmacKey           []byte
 	repoInfo          reference.Named
 	ref               reference.Named
-	endpoint          registry.APIEndpoint
 	repo              distribution.Repository
 	pushState         *pushState
 	remoteDescriptor  distribution.Descriptor
@@ -261,13 +259,10 @@ func (pd *v2PushDescriptor) DiffID() layer.DiffID {
 }
 
 func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.Output) (distribution.Descriptor, error) {
-	// Skip foreign layers unless this registry allows nondistributable artifacts.
-	if !pd.endpoint.AllowNondistributableArtifacts {
-		if fs, ok := pd.layer.(distribution.Describable); ok {
-			if d := fs.Descriptor(); len(d.URLs) > 0 {
-				progress.Update(progressOutput, pd.ID(), "Skipped foreign layer")
-				return d, nil
-			}
+	if fs, ok := pd.layer.(distribution.Describable); ok {
+		if d := fs.Descriptor(); len(d.URLs) > 0 {
+			progress.Update(progressOutput, pd.ID(), "Skipped foreign layer")
+			return d, nil
 		}
 	}
 
@@ -395,7 +390,12 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 	defer layerUpload.Close()
 
 	// upload the blob
-	return pd.uploadUsingSession(ctx, progressOutput, diffID, layerUpload)
+	desc, err := pd.uploadUsingSession(ctx, progressOutput, diffID, layerUpload)
+	if err != nil {
+		return desc, err
+	}
+
+	return desc, nil
 }
 
 func (pd *v2PushDescriptor) SetRemoteDescriptor(descriptor distribution.Descriptor) {
@@ -415,10 +415,6 @@ func (pd *v2PushDescriptor) uploadUsingSession(
 	var reader io.ReadCloser
 
 	contentReader, err := pd.layer.Open()
-	if err != nil {
-		return distribution.Descriptor{}, retryOnError(err)
-	}
-
 	size, _ := pd.layer.Size()
 
 	reader = progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, contentReader), progressOutput, size, pd.ID(), "Pushing")
@@ -646,7 +642,6 @@ func (bla byLikeness) Swap(i, j int) {
 }
 func (bla byLikeness) Len() int { return len(bla.arr) }
 
-// nolint: interfacer
 func sortV2MetadataByLikenessAndAge(repoInfo reference.Named, hmacKey []byte, marr []metadata.V2Metadata) {
 	// reverse the metadata array to shift the newest entries to the beginning
 	for i := 0; i < len(marr)/2; i++ {

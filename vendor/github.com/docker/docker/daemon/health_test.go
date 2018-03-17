@@ -14,28 +14,24 @@ import (
 func reset(c *container.Container) {
 	c.State = &container.State{}
 	c.State.Health = &container.Health{}
-	c.State.Health.SetStatus(types.Starting)
+	c.State.Health.Status = types.Starting
 }
 
 func TestNoneHealthcheck(t *testing.T) {
 	c := &container.Container{
-		ID:   "container_id",
-		Name: "container_name",
-		Config: &containertypes.Config{
-			Image: "image_name",
-			Healthcheck: &containertypes.HealthConfig{
-				Test: []string{"NONE"},
+		CommonContainer: container.CommonContainer{
+			ID:   "container_id",
+			Name: "container_name",
+			Config: &containertypes.Config{
+				Image: "image_name",
+				Healthcheck: &containertypes.HealthConfig{
+					Test: []string{"NONE"},
+				},
 			},
+			State: &container.State{},
 		},
-		State: &container.State{},
 	}
-	store, err := container.NewViewDB()
-	if err != nil {
-		t.Fatal(err)
-	}
-	daemon := &Daemon{
-		containersReplica: store,
-	}
+	daemon := &Daemon{}
 
 	daemon.initHealthMonitor(c)
 	if c.State.Health != nil {
@@ -62,21 +58,16 @@ func TestHealthStates(t *testing.T) {
 	}
 
 	c := &container.Container{
-		ID:   "container_id",
-		Name: "container_name",
-		Config: &containertypes.Config{
-			Image: "image_name",
+		CommonContainer: container.CommonContainer{
+			ID:   "container_id",
+			Name: "container_name",
+			Config: &containertypes.Config{
+				Image: "image_name",
+			},
 		},
 	}
-
-	store, err := container.NewViewDB()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	daemon := &Daemon{
-		EventsService:     e,
-		containersReplica: store,
+		EventsService: e,
 	}
 
 	c.Config.Healthcheck = &containertypes.HealthConfig{
@@ -111,8 +102,8 @@ func TestHealthStates(t *testing.T) {
 
 	handleResult(c.State.StartedAt.Add(20*time.Second), 1)
 	handleResult(c.State.StartedAt.Add(40*time.Second), 1)
-	if status := c.State.Health.Status(); status != types.Starting {
-		t.Errorf("Expecting starting, but got %#v\n", status)
+	if c.State.Health.Status != types.Starting {
+		t.Errorf("Expecting starting, but got %#v\n", c.State.Health.Status)
 	}
 	if c.State.Health.FailingStreak != 2 {
 		t.Errorf("Expecting FailingStreak=2, but got %d\n", c.State.Health.FailingStreak)
@@ -133,15 +124,15 @@ func TestHealthStates(t *testing.T) {
 	c.Config.Healthcheck.StartPeriod = 30 * time.Second
 
 	handleResult(c.State.StartedAt.Add(20*time.Second), 1)
-	if status := c.State.Health.Status(); status != types.Starting {
-		t.Errorf("Expecting starting, but got %#v\n", status)
+	if c.State.Health.Status != types.Starting {
+		t.Errorf("Expecting starting, but got %#v\n", c.State.Health.Status)
 	}
 	if c.State.Health.FailingStreak != 0 {
 		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.FailingStreak)
 	}
 	handleResult(c.State.StartedAt.Add(50*time.Second), 1)
-	if status := c.State.Health.Status(); status != types.Starting {
-		t.Errorf("Expecting starting, but got %#v\n", status)
+	if c.State.Health.Status != types.Starting {
+		t.Errorf("Expecting starting, but got %#v\n", c.State.Health.Status)
 	}
 	if c.State.Health.FailingStreak != 1 {
 		t.Errorf("Expecting FailingStreak=1, but got %d\n", c.State.Health.FailingStreak)

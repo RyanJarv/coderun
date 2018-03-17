@@ -12,12 +12,11 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile"
-	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/pkg/errors"
@@ -27,37 +26,33 @@ import (
 // inConfig (if src is "-"), or from a URI specified in src. Progress output is
 // written to outStream. Repository and tag names can optionally be given in
 // the repo and tag arguments, respectively.
-func (daemon *Daemon) ImportImage(src string, repository, os string, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
+func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
 	var (
+		sf     = streamformatter.NewJSONStreamFormatter()
 		rc     io.ReadCloser
 		resp   *http.Response
 		newRef reference.Named
 	)
 
-	// Default the operating system if not supplied.
-	if os == "" {
-		os = runtime.GOOS
-	}
-
 	if repository != "" {
 		var err error
 		newRef, err = reference.ParseNormalizedNamed(repository)
 		if err != nil {
-			return errdefs.InvalidParameter(err)
+			return err
 		}
 		if _, isCanonical := newRef.(reference.Canonical); isCanonical {
-			return errdefs.InvalidParameter(errors.New("cannot import digest reference"))
+			return errors.New("cannot import digest reference")
 		}
 
 		if tag != "" {
 			newRef, err = reference.WithTag(newRef, tag)
 			if err != nil {
-				return errdefs.InvalidParameter(err)
+				return err
 			}
 		}
 	}
 
-	config, err := dockerfile.BuildFromConfig(&container.Config{}, changes, os)
+	config, err := dockerfile.BuildFromConfig(&container.Config{}, changes)
 	if err != nil {
 		return err
 	}
@@ -70,15 +65,15 @@ func (daemon *Daemon) ImportImage(src string, repository, os string, tag string,
 		}
 		u, err := url.Parse(src)
 		if err != nil {
-			return errdefs.InvalidParameter(err)
+			return err
 		}
 
-		resp, err = remotecontext.GetWithStatusError(u.String())
+		resp, err = httputils.Download(u.String())
 		if err != nil {
 			return err
 		}
-		outStream.Write(streamformatter.FormatStatus("", "Downloading from %s", u))
-		progressOutput := streamformatter.NewJSONProgressOutput(outStream, true)
+		outStream.Write(sf.FormatStatus("", "Downloading from %s", u))
+		progressOutput := sf.NewProgressOutput(outStream, true)
 		rc = progress.NewProgressReader(resp.Body, progressOutput, resp.ContentLength, "", "Importing")
 	}
 
@@ -91,11 +86,12 @@ func (daemon *Daemon) ImportImage(src string, repository, os string, tag string,
 	if err != nil {
 		return err
 	}
-	l, err := daemon.layerStores[os].Register(inflatedLayerData, "")
+	// TODO: support windows baselayer?
+	l, err := daemon.layerStore.Register(inflatedLayerData, "")
 	if err != nil {
 		return err
 	}
-	defer layer.ReleaseAndLog(daemon.layerStores[os], l)
+	defer layer.ReleaseAndLog(daemon.layerStore, l)
 
 	created := time.Now().UTC()
 	imgConfig, err := json.Marshal(&image.Image{
@@ -103,7 +99,7 @@ func (daemon *Daemon) ImportImage(src string, repository, os string, tag string,
 			DockerVersion: dockerversion.Version,
 			Config:        config,
 			Architecture:  runtime.GOARCH,
-			OS:            os,
+			OS:            runtime.GOOS,
 			Created:       created,
 			Comment:       msg,
 		},
@@ -133,6 +129,6 @@ func (daemon *Daemon) ImportImage(src string, repository, os string, tag string,
 	}
 
 	daemon.LogImageEvent(id.String(), id.String(), "import")
-	outStream.Write(streamformatter.FormatStatus("", id.String()))
+	outStream.Write(sf.FormatStatus("", id.String()))
 	return nil
 }

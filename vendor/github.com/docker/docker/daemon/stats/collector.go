@@ -1,12 +1,14 @@
+// +build !solaris
+
 package stats
 
 import (
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/pubsub"
-	"github.com/sirupsen/logrus"
 )
 
 // Collect registers the container with the collector and adds it to
@@ -86,35 +88,29 @@ func (s *Collector) Run() {
 
 		for _, pair := range pairs {
 			stats, err := s.supervisor.GetContainerStats(pair.container)
+			if err != nil {
+				if _, ok := err.(notRunningErr); !ok {
+					logrus.Errorf("collecting stats for %s: %v", pair.container.ID, err)
+					continue
+				}
 
-			switch err.(type) {
-			case nil:
-				// FIXME: move to containerd on Linux (not Windows)
-				stats.CPUStats.SystemUsage = systemUsage
-				stats.CPUStats.OnlineCPUs = onlineCPUs
-
-				pair.publisher.Publish(*stats)
-
-			case notRunningErr, notFoundErr:
-				// publish empty stats containing only name and ID if not running or not found
+				// publish empty stats containing only name and ID if not running
 				pair.publisher.Publish(types.StatsJSON{
 					Name: pair.container.Name,
 					ID:   pair.container.ID,
 				})
-
-			default:
-				logrus.Errorf("collecting stats for %s: %v", pair.container.ID, err)
+				continue
 			}
+			// FIXME: move to containerd on Linux (not Windows)
+			stats.CPUStats.SystemUsage = systemUsage
+			stats.CPUStats.OnlineCPUs = onlineCPUs
+
+			pair.publisher.Publish(*stats)
 		}
 	}
 }
 
 type notRunningErr interface {
 	error
-	Conflict()
-}
-
-type notFoundErr interface {
-	error
-	NotFound()
+	ContainerIsRunning() bool
 }

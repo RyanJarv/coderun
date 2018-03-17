@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/docker/distribution"
@@ -22,10 +21,8 @@ import (
 )
 
 type imageDescriptor struct {
-	refs     []reference.NamedTagged
-	layers   []string
-	image    *image.Image
-	layerRef layer.Layer
+	refs   []reference.NamedTagged
+	layers []string
 }
 
 type saveSession struct {
@@ -42,47 +39,33 @@ func (l *tarexporter) Save(names []string, outStream io.Writer) error {
 		return err
 	}
 
-	// Release all the image top layer references
-	defer l.releaseLayerReferences(images)
 	return (&saveSession{tarexporter: l, images: images}).save(outStream)
 }
 
-// parseNames will parse the image names to a map which contains image.ID to *imageDescriptor.
-// Each imageDescriptor holds an image top layer reference named 'layerRef'. It is taken here, should be released later.
-func (l *tarexporter) parseNames(names []string) (desc map[image.ID]*imageDescriptor, rErr error) {
+func (l *tarexporter) parseNames(names []string) (map[image.ID]*imageDescriptor, error) {
 	imgDescr := make(map[image.ID]*imageDescriptor)
-	defer func() {
-		if rErr != nil {
-			l.releaseLayerReferences(imgDescr)
-		}
-	}()
 
-	addAssoc := func(id image.ID, ref reference.Named) error {
+	addAssoc := func(id image.ID, ref reference.Named) {
 		if _, ok := imgDescr[id]; !ok {
-			descr := &imageDescriptor{}
-			if err := l.takeLayerReference(id, descr); err != nil {
-				return err
-			}
-			imgDescr[id] = descr
+			imgDescr[id] = &imageDescriptor{}
 		}
 
 		if ref != nil {
 			if _, ok := ref.(reference.Canonical); ok {
-				return nil
+				return
 			}
 			tagged, ok := reference.TagNameOnly(ref).(reference.NamedTagged)
 			if !ok {
-				return nil
+				return
 			}
 
 			for _, t := range imgDescr[id].refs {
 				if tagged.String() == t.String() {
-					return nil
+					return
 				}
 			}
 			imgDescr[id].refs = append(imgDescr[id].refs, tagged)
 		}
-		return nil
 	}
 
 	for _, name := range names {
@@ -95,9 +78,11 @@ func (l *tarexporter) parseNames(names []string) (desc map[image.ID]*imageDescri
 			// Check if digest ID reference
 			if digested, ok := ref.(reference.Digested); ok {
 				id := image.IDFromDigest(digested.Digest())
-				if err := addAssoc(id, nil); err != nil {
+				_, err := l.is.Get(id)
+				if err != nil {
 					return nil, err
 				}
+				addAssoc(id, nil)
 				continue
 			}
 			return nil, errors.Errorf("invalid reference: %v", name)
@@ -108,26 +93,20 @@ func (l *tarexporter) parseNames(names []string) (desc map[image.ID]*imageDescri
 			if err != nil {
 				return nil, err
 			}
-			if err := addAssoc(imgID, nil); err != nil {
-				return nil, err
-			}
+			addAssoc(imgID, nil)
 			continue
 		}
 		if reference.IsNameOnly(namedRef) {
 			assocs := l.rs.ReferencesByName(namedRef)
 			for _, assoc := range assocs {
-				if err := addAssoc(image.IDFromDigest(assoc.ID), assoc.Ref); err != nil {
-					return nil, err
-				}
+				addAssoc(image.IDFromDigest(assoc.ID), assoc.Ref)
 			}
 			if len(assocs) == 0 {
 				imgID, err := l.is.Search(name)
 				if err != nil {
 					return nil, err
 				}
-				if err := addAssoc(imgID, nil); err != nil {
-					return nil, err
-				}
+				addAssoc(imgID, nil)
 			}
 			continue
 		}
@@ -135,49 +114,10 @@ func (l *tarexporter) parseNames(names []string) (desc map[image.ID]*imageDescri
 		if err != nil {
 			return nil, err
 		}
-		if err := addAssoc(image.IDFromDigest(id), namedRef); err != nil {
-			return nil, err
-		}
+		addAssoc(image.IDFromDigest(id), namedRef)
 
 	}
 	return imgDescr, nil
-}
-
-// takeLayerReference will take/Get the image top layer reference
-func (l *tarexporter) takeLayerReference(id image.ID, imgDescr *imageDescriptor) error {
-	img, err := l.is.Get(id)
-	if err != nil {
-		return err
-	}
-	imgDescr.image = img
-	topLayerID := img.RootFS.ChainID()
-	if topLayerID == "" {
-		return nil
-	}
-	os := img.OS
-	if os == "" {
-		os = runtime.GOOS
-	}
-	layer, err := l.lss[os].Get(topLayerID)
-	if err != nil {
-		return err
-	}
-	imgDescr.layerRef = layer
-	return nil
-}
-
-// releaseLayerReferences will release all the image top layer references
-func (l *tarexporter) releaseLayerReferences(imgDescr map[image.ID]*imageDescriptor) error {
-	for _, descr := range imgDescr {
-		if descr.layerRef != nil {
-			os := descr.image.OS
-			if os == "" {
-				os = runtime.GOOS
-			}
-			l.lss[os].Release(descr.layerRef)
-		}
-	}
-	return nil
 }
 
 func (s *saveSession) save(outStream io.Writer) error {
@@ -284,7 +224,11 @@ func (s *saveSession) save(outStream io.Writer) error {
 }
 
 func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]distribution.Descriptor, error) {
-	img := s.images[id].image
+	img, err := s.is.Get(id)
+	if err != nil {
+		return nil, err
+	}
+
 	if len(img.RootFS.DiffIDs) == 0 {
 		return nil, fmt.Errorf("empty export - not implemented")
 	}
@@ -365,15 +309,11 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 
 	// serialize filesystem
 	layerPath := filepath.Join(outDir, legacyLayerFileName)
-	operatingSystem := legacyImg.OS
-	if operatingSystem == "" {
-		operatingSystem = runtime.GOOS
-	}
-	l, err := s.lss[operatingSystem].Get(id)
+	l, err := s.ls.Get(id)
 	if err != nil {
 		return distribution.Descriptor{}, err
 	}
-	defer layer.ReleaseAndLog(s.lss[operatingSystem], l)
+	defer layer.ReleaseAndLog(s.ls, l)
 
 	if oldPath, exists := s.diffIDPaths[l.DiffID()]; exists {
 		relPath, err := filepath.Rel(outDir, oldPath)

@@ -94,7 +94,7 @@ func TestLayerMigration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ls, err := NewStoreFromGraphDriver(fms, graph, runtime.GOOS)
+	ls, err := NewStoreFromGraphDriver(fms, graph)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,7 +222,7 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ls, err := NewStoreFromGraphDriver(fms, graph, runtime.GOOS)
+	ls, err := NewStoreFromGraphDriver(fms, graph)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -22,8 +22,6 @@ type Plugin struct {
 
 	Config   digest.Digest
 	Blobsums []digest.Digest
-
-	SwarmServiceID string
 }
 
 const defaultPluginRuntimeDestination = "/run/docker/plugins"
@@ -142,9 +140,6 @@ next:
 				}
 
 				// it is, so lets update the settings in memory
-				if mount.Source == nil {
-					return fmt.Errorf("Plugin config has no mount source")
-				}
 				*mount.Source = s.value
 				continue next
 			}
@@ -162,9 +157,6 @@ next:
 				}
 
 				// it is, so lets update the settings in memory
-				if device.Path == nil {
-					return fmt.Errorf("Plugin config has no device path")
-				}
 				*device.Path = s.value
 				continue next
 			}

@@ -50,9 +50,8 @@ type DockerExternalVolumeSuite struct {
 }
 
 func (s *DockerExternalVolumeSuite) SetUpTest(c *check.C) {
-	testRequires(c, SameHostDaemon)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
+		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	s.ec = &eventCounter{}
 }
@@ -616,19 +615,4 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnmountOnMountFail(c
 	c.Assert(s.ec.unmounts, checker.Equals, 0, check.Commentf(out))
 	out, _ = s.d.Cmd("run", "-w", "/foo", "-v", "testumount:/foo", "busybox", "true")
 	c.Assert(s.ec.unmounts, checker.Equals, 0, check.Commentf(out))
-}
-
-func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnmountOnCp(c *check.C) {
-	s.d.StartWithBusybox(c)
-	s.d.Cmd("volume", "create", "-d", "test-external-volume-driver", "--name=test")
-
-	out, _ := s.d.Cmd("run", "-d", "--name=test", "-v", "test:/foo", "busybox", "/bin/sh", "-c", "touch /test && top")
-	c.Assert(s.ec.mounts, checker.Equals, 1, check.Commentf(out))
-
-	out, _ = s.d.Cmd("cp", "test:/test", "/tmp/test")
-	c.Assert(s.ec.mounts, checker.Equals, 2, check.Commentf(out))
-	c.Assert(s.ec.unmounts, checker.Equals, 1, check.Commentf(out))
-
-	out, _ = s.d.Cmd("kill", "test")
-	c.Assert(s.ec.unmounts, checker.Equals, 2, check.Commentf(out))
 }

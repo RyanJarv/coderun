@@ -6,12 +6,18 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/pkg/pools"
-	"github.com/docker/docker/pkg/term"
-	"github.com/sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/promise"
 )
 
 var defaultEscapeSequence = []byte{16, 17} // ctrl-p, ctrl-q
+
+// DetachError is special error which returned in case of container detach.
+type DetachError struct{}
+
+func (DetachError) Error() string {
+	return "detached from container"
+}
 
 // AttachConfig is the config struct used to attach a client to a stream's stdio
 type AttachConfig struct {
@@ -57,7 +63,7 @@ func (c *Config) AttachStreams(cfg *AttachConfig) {
 }
 
 // CopyStreams starts goroutines to copy data in and out to/from the container
-func (c *Config) CopyStreams(ctx context.Context, cfg *AttachConfig) <-chan error {
+func (c *Config) CopyStreams(ctx context.Context, cfg *AttachConfig) chan error {
 	var (
 		wg     sync.WaitGroup
 		errors = make(chan error, 3)
@@ -86,7 +92,7 @@ func (c *Config) CopyStreams(ctx context.Context, cfg *AttachConfig) <-chan erro
 		if cfg.TTY {
 			_, err = copyEscapable(cfg.CStdin, cfg.Stdin, cfg.DetachKeys)
 		} else {
-			_, err = pools.Copy(cfg.CStdin, cfg.Stdin)
+			_, err = io.Copy(cfg.CStdin, cfg.Stdin)
 		}
 		if err == io.ErrClosedPipe {
 			err = nil
@@ -116,7 +122,7 @@ func (c *Config) CopyStreams(ctx context.Context, cfg *AttachConfig) <-chan erro
 		}
 
 		logrus.Debugf("attach: %s: begin", name)
-		_, err := pools.Copy(stream, streamPipe)
+		_, err := io.Copy(stream, streamPipe)
 		if err == io.ErrClosedPipe {
 			err = nil
 		}
@@ -136,50 +142,94 @@ func (c *Config) CopyStreams(ctx context.Context, cfg *AttachConfig) <-chan erro
 	go attachStream("stdout", cfg.Stdout, cfg.CStdout)
 	go attachStream("stderr", cfg.Stderr, cfg.CStderr)
 
-	errs := make(chan error, 1)
-
-	go func() {
-		defer close(errs)
-		errs <- func() error {
-			done := make(chan struct{})
-			go func() {
-				wg.Wait()
-				close(done)
-			}()
-			select {
-			case <-done:
-			case <-ctx.Done():
-				// close all pipes
-				if cfg.CStdin != nil {
-					cfg.CStdin.Close()
-				}
-				if cfg.CStdout != nil {
-					cfg.CStdout.Close()
-				}
-				if cfg.CStderr != nil {
-					cfg.CStderr.Close()
-				}
-				<-done
-			}
-			close(errors)
-			for err := range errors {
-				if err != nil {
-					return err
-				}
-			}
-			return nil
+	return promise.Go(func() error {
+		done := make(chan struct{})
+		go func() {
+			wg.Wait()
+			close(done)
 		}()
-	}()
+		select {
+		case <-done:
+		case <-ctx.Done():
+			// close all pipes
+			if cfg.CStdin != nil {
+				cfg.CStdin.Close()
+			}
+			if cfg.CStdout != nil {
+				cfg.CStdout.Close()
+			}
+			if cfg.CStderr != nil {
+				cfg.CStderr.Close()
+			}
+			<-done
+		}
+		close(errors)
+		for err := range errors {
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
 
-	return errs
+// ttyProxy is used only for attaches with a TTY. It is used to proxy
+// stdin keypresses from the underlying reader and look for the passed in
+// escape key sequence to signal a detach.
+type ttyProxy struct {
+	escapeKeys   []byte
+	escapeKeyPos int
+	r            io.Reader
+}
+
+func (r *ttyProxy) Read(buf []byte) (int, error) {
+	nr, err := r.r.Read(buf)
+
+	preserve := func() {
+		// this preserves the original key presses in the passed in buffer
+		nr += r.escapeKeyPos
+		preserve := make([]byte, 0, r.escapeKeyPos+len(buf))
+		preserve = append(preserve, r.escapeKeys[:r.escapeKeyPos]...)
+		preserve = append(preserve, buf...)
+		r.escapeKeyPos = 0
+		copy(buf[0:nr], preserve)
+	}
+
+	if nr != 1 || err != nil {
+		if r.escapeKeyPos > 0 {
+			preserve()
+		}
+		return nr, err
+	}
+
+	if buf[0] != r.escapeKeys[r.escapeKeyPos] {
+		if r.escapeKeyPos > 0 {
+			preserve()
+		}
+		return nr, nil
+	}
+
+	if r.escapeKeyPos == len(r.escapeKeys)-1 {
+		return 0, DetachError{}
+	}
+
+	// Looks like we've got an escape key, but we need to match again on the next
+	// read.
+	// Store the current escape key we found so we can look for the next one on
+	// the next read.
+	// Since this is an escape key, make sure we don't let the caller read it
+	// If later on we find that this is not the escape sequence, we'll add the
+	// keys back
+	r.escapeKeyPos++
+	return nr - r.escapeKeyPos, nil
 }
 
 func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64, err error) {
 	if len(keys) == 0 {
 		keys = defaultEscapeSequence
 	}
-	pr := term.NewEscapeProxy(src, keys)
+	pr := &ttyProxy{escapeKeys: keys, r: src}
 	defer src.Close()
 
-	return pools.Copy(dst, pr)
+	return io.Copy(dst, pr)
 }

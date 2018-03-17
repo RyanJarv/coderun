@@ -1,12 +1,13 @@
+// +build linux
+
 package fsutils
 
 import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"syscall"
 	"unsafe"
-
-	"golang.org/x/sys/unix"
 )
 
 func locateDummyIfEmpty(path string) (string, error) {
@@ -39,9 +40,9 @@ func SupportsDType(path string) (bool, error) {
 
 	visited := 0
 	supportsDType := true
-	fn := func(ent *unix.Dirent) bool {
+	fn := func(ent *syscall.Dirent) bool {
 		visited++
-		if ent.Type == unix.DT_UNKNOWN {
+		if ent.Type == syscall.DT_UNKNOWN {
 			supportsDType = false
 			// stop iteration
 			return true
@@ -58,7 +59,7 @@ func SupportsDType(path string) (bool, error) {
 	return supportsDType, nil
 }
 
-func iterateReadDir(path string, fn func(*unix.Dirent) bool) error {
+func iterateReadDir(path string, fn func(*syscall.Dirent) bool) error {
 	d, err := os.Open(path)
 	if err != nil {
 		return err
@@ -67,7 +68,7 @@ func iterateReadDir(path string, fn func(*unix.Dirent) bool) error {
 	fd := int(d.Fd())
 	buf := make([]byte, 4096)
 	for {
-		nbytes, err := unix.ReadDirent(fd, buf)
+		nbytes, err := syscall.ReadDirent(fd, buf)
 		if err != nil {
 			return err
 		}
@@ -75,7 +76,7 @@ func iterateReadDir(path string, fn func(*unix.Dirent) bool) error {
 			break
 		}
 		for off := 0; off < nbytes; {
-			ent := (*unix.Dirent)(unsafe.Pointer(&buf[off]))
+			ent := (*syscall.Dirent)(unsafe.Pointer(&buf[off]))
 			if stop := fn(ent); stop {
 				return nil
 			}

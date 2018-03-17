@@ -13,6 +13,7 @@ import (
 
 	"encoding/json"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/image"
@@ -21,7 +22,6 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	refstore "github.com/docker/docker/reference"
 	"github.com/opencontainers/go-digest"
-	"github.com/sirupsen/logrus"
 )
 
 type graphIDRegistrar interface {
@@ -89,7 +89,11 @@ func Migrate(root, driverName string, ls layer.Store, is image.Store, rs refstor
 		return err
 	}
 
-	return migrateRefs(root, driverName, rs, mappings)
+	if err := migrateRefs(root, driverName, rs, mappings); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // CalculateLayerChecksums walks an old graph directory and calculates checksums

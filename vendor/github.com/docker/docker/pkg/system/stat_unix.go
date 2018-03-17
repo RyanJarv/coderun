@@ -2,9 +2,7 @@
 
 package system
 
-import (
-	"syscall"
-)
+import "syscall"
 
 // StatT type contains status of a file. It contains metadata
 // like permission, owner, group, size, etc about a file.
@@ -45,11 +43,6 @@ func (s StatT) Size() int64 {
 // Mtim returns file's last modification time.
 func (s StatT) Mtim() syscall.Timespec {
 	return s.mtim
-}
-
-// IsDir reports whether s describes a directory.
-func (s StatT) IsDir() bool {
-	return s.mode&syscall.S_IFDIR != 0
 }
 
 // Stat takes a path to a file and returns

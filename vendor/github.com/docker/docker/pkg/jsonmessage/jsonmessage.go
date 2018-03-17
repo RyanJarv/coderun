@@ -8,14 +8,12 @@ import (
 	"strings"
 	"time"
 
-	gotty "github.com/Nvveen/Gotty"
-	"github.com/docker/docker/pkg/term"
-	units "github.com/docker/go-units"
-)
+	"github.com/Nvveen/Gotty"
 
-// RFC3339NanoFixed is time.RFC3339Nano with nanoseconds padded using zeros to
-// ensure the formatted time isalways the same number of characters.
-const RFC3339NanoFixed = "2006-01-02T15:04:05.000000000Z07:00"
+	"github.com/docker/docker/pkg/jsonlog"
+	"github.com/docker/docker/pkg/term"
+	"github.com/docker/go-units"
+)
 
 // JSONError wraps a concrete Code and Message, `Code` is
 // is an integer error code, `Message` is the error message.
@@ -38,8 +36,7 @@ type JSONProgress struct {
 	Total      int64 `json:"total,omitempty"`
 	Start      int64 `json:"start,omitempty"`
 	// If true, don't show xB/yB
-	HideCounts bool   `json:"hidecounts,omitempty"`
-	Units      string `json:"units,omitempty"`
+	HideCounts bool `json:"hidecounts,omitempty"`
 }
 
 func (p *JSONProgress) String() string {
@@ -58,16 +55,11 @@ func (p *JSONProgress) String() string {
 	if p.Current <= 0 && p.Total <= 0 {
 		return ""
 	}
+	current := units.HumanSize(float64(p.Current))
 	if p.Total <= 0 {
-		switch p.Units {
-		case "":
-			current := units.HumanSize(float64(p.Current))
-			return fmt.Sprintf("%8v", current)
-		default:
-			return fmt.Sprintf("%d %s", p.Current, p.Units)
-		}
+		return fmt.Sprintf("%8v", current)
 	}
-
+	total := units.HumanSize(float64(p.Total))
 	percentage := int(float64(p.Current)/float64(p.Total)*100) / 2
 	if percentage > 50 {
 		percentage = 50
@@ -81,24 +73,12 @@ func (p *JSONProgress) String() string {
 		pbBox = fmt.Sprintf("[%s>%s] ", strings.Repeat("=", percentage), strings.Repeat(" ", numSpaces))
 	}
 
-	switch {
-	case p.HideCounts:
-	case p.Units == "": // no units, use bytes
-		current := units.HumanSize(float64(p.Current))
-		total := units.HumanSize(float64(p.Total))
-
+	if !p.HideCounts {
 		numbersBox = fmt.Sprintf("%8v/%v", current, total)
 
 		if p.Current > p.Total {
 			// remove total display if the reported current is wonky.
 			numbersBox = fmt.Sprintf("%8v", current)
-		}
-	default:
-		numbersBox = fmt.Sprintf("%d/%d %s", p.Current, p.Total, p.Units)
-
-		if p.Current > p.Total {
-			// remove total display if the reported current is wonky.
-			numbersBox = fmt.Sprintf("%d %s", p.Current, p.Units)
 		}
 	}
 
@@ -129,7 +109,7 @@ type JSONMessage struct {
 	TimeNano        int64         `json:"timeNano,omitempty"`
 	Error           *JSONError    `json:"errorDetail,omitempty"`
 	ErrorMessage    string        `json:"error,omitempty"` //deprecated
-	// Aux contains out-of-band data, such as digests for push signing and image id after building.
+	// Aux contains out-of-band data, such as digests for push signing.
 	Aux *json.RawMessage `json:"aux,omitempty"`
 }
 
@@ -189,7 +169,7 @@ func cursorDown(out io.Writer, ti termInfo, l int) {
 func (jm *JSONMessage) Display(out io.Writer, termInfo termInfo) error {
 	if jm.Error != nil {
 		if jm.Error.Code == 401 {
-			return fmt.Errorf("authentication is required")
+			return fmt.Errorf("Authentication is required.")
 		}
 		return jm.Error
 	}
@@ -202,9 +182,9 @@ func (jm *JSONMessage) Display(out io.Writer, termInfo termInfo) error {
 		return nil
 	}
 	if jm.TimeNano != 0 {
-		fmt.Fprintf(out, "%s ", time.Unix(0, jm.TimeNano).Format(RFC3339NanoFixed))
+		fmt.Fprintf(out, "%s ", time.Unix(0, jm.TimeNano).Format(jsonlog.RFC3339NanoFixed))
 	} else if jm.Time != 0 {
-		fmt.Fprintf(out, "%s ", time.Unix(jm.Time, 0).Format(RFC3339NanoFixed))
+		fmt.Fprintf(out, "%s ", time.Unix(jm.Time, 0).Format(jsonlog.RFC3339NanoFixed))
 	}
 	if jm.ID != "" {
 		fmt.Fprintf(out, "%s: ", jm.ID)

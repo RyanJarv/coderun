@@ -25,7 +25,7 @@ type manifestItem struct {
 
 type tarexporter struct {
 	is             image.Store
-	lss            map[string]layer.Store
+	ls             layer.Store
 	rs             refstore.Store
 	loggerImgEvent LogImageEvent
 }
@@ -37,10 +37,10 @@ type LogImageEvent interface {
 }
 
 // NewTarExporter returns new Exporter for tar packages
-func NewTarExporter(is image.Store, lss map[string]layer.Store, rs refstore.Store, loggerImgEvent LogImageEvent) image.Exporter {
+func NewTarExporter(is image.Store, ls layer.Store, rs refstore.Store, loggerImgEvent LogImageEvent) image.Exporter {
 	return &tarexporter{
 		is:             is,
-		lss:            lss,
+		ls:             ls,
 		rs:             rs,
 		loggerImgEvent: loggerImgEvent,
 	}

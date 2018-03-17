@@ -51,7 +51,7 @@ func (daemon *Daemon) PushImage(ctx context.Context, image, tag string, metaHead
 			ReferenceStore:   daemon.referenceStore,
 		},
 		ConfigMediaType: schema2.MediaTypeImageConfig,
-		LayerStores:     distribution.NewLayerProvidersFromStores(daemon.layerStores),
+		LayerStore:      distribution.NewLayerProviderFromStore(daemon.layerStore),
 		TrustKey:        daemon.trustKey,
 		UploadManager:   daemon.uploadManager,
 	}

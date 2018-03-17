@@ -1,21 +1,18 @@
 package httputils
 
 import (
+	"fmt"
 	"io"
-	"mime"
 	"net/http"
 	"strings"
 
-	"github.com/docker/docker/errdefs"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
+
+	"github.com/docker/docker/api"
 )
 
-type contextKey string
-
 // APIVersionKey is the client's requested API version.
-const APIVersionKey contextKey = "api-version"
+const APIVersionKey = "api-version"
 
 // APIFunc is an adapter to allow the use of ordinary functions as Docker API endpoints.
 // Any function that has the appropriate signature can be registered as an API endpoint (e.g. getVersion).
@@ -58,10 +55,10 @@ func CheckForJSON(r *http.Request) error {
 	}
 
 	// Otherwise it better be json
-	if matchesContentType(ct, "application/json") {
+	if api.MatchesContentType(ct, "application/json") {
 		return nil
 	}
-	return errdefs.InvalidParameter(errors.Errorf("Content-Type specified (%s) must be 'application/json'", ct))
+	return fmt.Errorf("Content-Type specified (%s) must be 'application/json'", ct)
 }
 
 // ParseForm ensures the request form is parsed even with invalid content types.
@@ -71,7 +68,7 @@ func ParseForm(r *http.Request) error {
 		return nil
 	}
 	if err := r.ParseForm(); err != nil && !strings.HasPrefix(err.Error(), "mime:") {
-		return errdefs.InvalidParameter(err)
+		return err
 	}
 	return nil
 }
@@ -88,13 +85,4 @@ func VersionFromContext(ctx context.Context) string {
 	}
 
 	return ""
-}
-
-// matchesContentType validates the content type against the expected one
-func matchesContentType(contentType, expectedType string) bool {
-	mimetype, _, err := mime.ParseMediaType(contentType)
-	if err != nil {
-		logrus.Errorf("Error parsing media type: %s error: %v", contentType, err)
-	}
-	return err == nil && mimetype == expectedType
 }
