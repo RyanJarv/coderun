@@ -173,14 +173,12 @@ func (d *CRDocker) Run(c dockerRunConfig) {
 	d.inspect()
 
 	if c.Attach {
-		statusCh, errCh := d.Client.ContainerWait(ctx, d.Id, container.WaitConditionNotRunning)
-		select {
-		case err := <-errCh:
+		go func() {
+			_, err := d.Client.ContainerWait(ctx, d.Id)
 			if err != nil {
-				panic(err)
+				Logger.error.Fatal(err)
 			}
-		case <-statusCh:
-		}
+		}()
 	}
 }
 

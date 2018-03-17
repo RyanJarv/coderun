@@ -1,9 +1,14 @@
 package coderun
 
 import (
+	"io"
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/RyanJarv/coderun/coderun/prompt"
+	"github.com/chzyer/readline"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 func NewShellBashResource(e IRunEnvironment) IShellResource {
@@ -17,7 +22,11 @@ type ShellBashResource struct {
 	bash                *CRDocker
 	shell               *exec.Cmd
 	tty                 *os.File
+	stdin               *io.PipeWriter
+	stdout              *io.PipeReader
 	registry            *Registry
+	oldstate            *terminal.State
+	input               chan byte
 	providers           map[string]IProvider
 	RegisteredProviders map[string]IProvider
 }
@@ -31,7 +40,7 @@ func (r *ShellBashResource) Register(e IRunEnvironment, p IProvider) bool {
 	cmd := e.Cmd()
 	if len(cmd) == 0 || len(cmd) == 1 && cmd[0] == "bash" {
 		e.Registry().AddAt(SetupStep, &StepCallback{Step: "Setup", Provider: p, Resource: r, Callback: r.Setup})
-		e.Registry().AddAt(RunStep, &StepCallback{Step: "Run", Provider: p, Resource: r, Callback: r.Run})
+		//e.Registry().AddAt(RunStep, &StepCallback{Step: "Run", Provider: p, Resource: r, Callback: r.Run})
 		e.Registry().AddAt(TeardownStep, &StepCallback{Step: "Teardown", Provider: p, Resource: r, Callback: r.Teardown})
 		return true
 	} else {
@@ -40,11 +49,15 @@ func (r *ShellBashResource) Register(e IRunEnvironment, p IProvider) bool {
 }
 
 func (r *ShellBashResource) Setup(callback *StepCallback, currentStep *StepCallback) {
-	r.shell, r.tty = runShell("bash", []string{"-l"})
+	p := prompt.NewPrompt()
+	p.AddCompleters(
+		readline.PcItem("test"),
+	)
+	p.Start()
 }
 
 func (r *ShellBashResource) Run(callback *StepCallback, currentStep *StepCallback) {
-	runShellCmds(r.shell, r.tty, r.NewCmd)
+	//runShellCmds(r.shell, r.tty, r.NewCmd)
 }
 
 func (r *ShellBashResource) Teardown(callback *StepCallback, currentStep *StepCallback) {

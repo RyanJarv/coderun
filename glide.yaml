@@ -12,3 +12,5 @@ import:
   version: ^20170619.0.0
   subpackages:
   - fuse
+- package: github.com/chzyer/readline
+  version: master

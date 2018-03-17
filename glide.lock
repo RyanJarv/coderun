@@ -1,5 +1,5 @@
-hash: f54b7e3f4d9bdbc2f30a8ee6918952dc8762b7e9851666156d61bfd36af7d663
-updated: 2018-02-28T19:23:52.862238006-06:00
+hash: a470a18e707bc0cb3bcefda989242e5b2ab9de12291cb777b309721dcd6f4244
+updated: 2018-03-17T00:04:32.129865056-05:00
 imports:
 - name: github.com/aws/aws-sdk-go
   version: 9ed0c8de252f04ac45a65358377103d5a1aa2d92
@@ -32,13 +32,15 @@ imports:
   - service/iam
   - service/lambda
   - service/sts
+- name: github.com/chzyer/readline
+  version: f6d7a1f6fbf35bbf9beb80dc63c56a29dcfb759f
 - name: github.com/docker/distribution
   version: fea8bd51143307d3454703eadecbeeb778aa75e8
   subpackages:
   - digestset
   - reference
 - name: github.com/docker/docker
-  version: 6e5c2d639f67ae70f54d9f2285f3261440b074aa
+  version: 90d35abf7b3535c1c319c872900fbd76374e521c
   subpackages:
   - api
   - api/types
@@ -52,25 +54,26 @@ imports:
   - api/types/registry
   - api/types/strslice
   - api/types/swarm
-  - api/types/swarm/runtime
   - api/types/time
   - api/types/versions
   - api/types/volume
   - client
+  - pkg/ioutils
+  - pkg/longpath
+  - pkg/system
+  - pkg/tlsconfig
 - name: github.com/docker/go-connections
-  version: 46f8e421b7f319539ea3015c4bfb68c4aef70b83
+  version: 3ede32e2033de7505e6500d6c868c2b9ed9f169d
   subpackages:
   - nat
   - sockets
   - tlsconfig
 - name: github.com/docker/go-units
   version: d59758554a3d3911fa25c0269de1ebe2f1912c39
+- name: github.com/docker/libtrust
+  version: aabc10ec26b754e797f9028f4589c5b7bd90dc20
 - name: github.com/go-ini/ini
   version: c437d20015c2ab6454b7a66a13109ff0fb99e17a
-- name: github.com/gogo/protobuf
-  version: 1adfc126b41513cc696b209667c8656ea7aac67c
-  subpackages:
-  - proto
 - name: github.com/hanwen/go-fuse
   version: 5690be47d614355a22931c129e1075c25a62e9ac
   subpackages:
@@ -86,15 +89,20 @@ imports:
   version: 7da180ee92d8bd8bb8c37fc560e673e6557c392f
 - name: github.com/opencontainers/go-digest
   version: 279bed98673dd5bef374d3b6e4b09e2af76183bf
-- name: github.com/opencontainers/image-spec
-  version: 577479e4dc273d3779f00c223c7e0dba4cd6b8b0
-  subpackages:
-  - specs-go
-  - specs-go/v1
 - name: github.com/pkg/errors
   version: 30136e27e2ac8d167177e8a583aa4c3fea5be833
+- name: github.com/RyanJarv/dockersnitch
+  version: 284ac3a29ae8f340794b8c8a68707b0d10a872c6
+  subpackages:
+  - dockersnitch/client
+- name: github.com/Sirupsen/logrus
+  version: c155da19408a8799da419ed3eeb0cb5db0ad5dbc
 - name: github.com/stretchr/objx
   version: facf9a85c22f48d2f52f2380e4efce1768749a89
+- name: golang.org/x/crypto
+  version: c4a91bd4f524f10d064139674cf55852e055ad01
+  subpackages:
+  - ssh/terminal
 - name: golang.org/x/net
   version: 66aacef3dd8a676686c7ae3716979581e8b03c47
   subpackages:

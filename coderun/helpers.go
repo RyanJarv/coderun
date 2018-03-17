@@ -16,6 +16,7 @@ import (
 	"syscall"
 
 	"github.com/kr/pty"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 func CreateCodeRunDir() {
@@ -136,14 +137,67 @@ func getNameOrEmpty(s INameable) string {
 	return n
 }
 
-func runShell(cmd string, args []string) (*exec.Cmd, *os.File) {
-	shell := exec.Command(cmd, args...)
+type Filter struct {
+	in       io.Reader
+	callback func(string) bool
+}
 
-	shell.Stderr = os.Stderr
-	shell.Stdout = os.Stdout
+func (f *Filter) Read(b []byte) (int, error) {
+	//var buf []byte
+	return f.in.Read(b)
+	// if n, err := f.in.Read(buf); err != nil {
+	// 	return n, err
+	// }
+	// fmt.Printf(string(buf))
+	// for {
+	// 	if f.callback(string(buf)) {
+	// 		continue
+	// 	} else {
+	// 		return len(b), nil
+	// 	}
+	// }
+}
+
+// Start assigns a pseudo-terminal tty os.File to c.Stdin, c.Stdout,
+// and c.Stderr, calls c.Start, and returns the File of the tty's
+// corresponding pty.
+func PtyStart(c *exec.Cmd, callback func(string) bool) (p *os.File, err error) {
+	cat := exec.Command("cat")
+	c.Stdin, err = cat.StdoutPipe()
+	if err != nil {
+		Logger.error.Fatal(err)
+	}
+	p, tty, err := pty.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer tty.Close()
+	cat.Stdout = tty
+	//filter := &Filter{in: tty, callback: callback}
+	cat.Stdin = tty
+	cat.Stderr = tty
+	if cat.SysProcAttr == nil {
+		cat.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	cat.SysProcAttr.Setctty = true
+	cat.SysProcAttr.Setsid = true
+	err = cat.Start()
+	if err != nil {
+		p.Close()
+		return nil, err
+	}
+	return p, err
+}
+
+func runShell(cmd string, args []string, callback func(string) bool) (*exec.Cmd, *os.File, *terminal.State) {
+	cat := exec.Command("cat")
+	shell := exec.Command(cmd, args...)
+	//var err error
 
 	Logger.info.Printf("Running command and waiting for it to finish...")
 	tty, err := pty.Start(shell)
+	cattty, err := pty.Start(cat)
+
 	if err != nil {
 		Logger.error.Fatal("Error start shell", err)
 	}
@@ -161,22 +215,32 @@ func runShell(cmd string, args []string) (*exec.Cmd, *os.File) {
 	ch <- syscall.SIGWINCH // Initial resize.
 
 	// Set stdin in raw mode.
-	//p.oldState, err = terminal.MakeRaw(int(os.Stdin.Fd()))
-	//if err != nil {
-	//	panic(err)
-	//}
+	oldstate, err := terminal.MakeRaw(int(os.Stdin.Fd()))
+	if err != nil {
+		panic(err)
+	}
 
 	go func() {
-		if _, err := io.Copy(os.Stdout, tty); err != nil {
+		if _, err := io.Copy(cattty, os.Stdin); err != nil {
+			Logger.error.Fatal(err)
+		}
+	}()
+	go func() {
+		if _, err := io.Copy(tty, cattty); err != nil {
+			Logger.error.Fatal(err)
+		}
+	}()
+	go func() {
+		if _, err = io.Copy(os.Stdout, tty); err != nil {
 			Logger.error.Fatal(err)
 		}
 	}()
 
 	Logger.info.Printf("Done with command %s", shell.Args)
-	return shell, tty
+	return shell, tty, oldstate
 }
 
-func runShellCmds(shell *exec.Cmd, tty *os.File, cb func([]string) []string) {
+func runShellCmds(shell *exec.Cmd, tty *os.File, shellStdin *io.PipeWriter, cb func([]string) []string) {
 	go func() {
 		stdin := bufio.NewReader(os.Stdin)
 		for {
@@ -190,7 +254,8 @@ func runShellCmds(shell *exec.Cmd, tty *os.File, cb func([]string) []string) {
 				}
 			}
 			if cmd := cb(strings.Split(string(line), " ")); len(cmd) > 0 {
-				tty.Write(append([]byte(strings.Join(cmd, " ")), '\n'))
+				Logger.debug.Printf("Writing to shellStdin")
+				shellStdin.Write(append([]byte(strings.Join(cmd, " ")), '\n'))
 			}
 		}
 
