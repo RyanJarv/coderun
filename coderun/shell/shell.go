@@ -1,4 +1,4 @@
-package prompt
+package shell
 
 import (
 	"fmt"
@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"strconv"
 	"strings"
 
 	"github.com/chzyer/readline"
@@ -60,8 +59,8 @@ func complete(action, search string) []string {
 	return strings.Split(string(out), "\n")
 }
 
-func NewPrompt() *Prompt {
-	p := &Prompt{
+func NewShell() *Shell {
+	p := &Shell{
 		completer: readline.NewPrefixCompleter(
 			readline.PcItem("mode",
 				readline.PcItem("vi"),
@@ -71,27 +70,30 @@ func NewPrompt() *Prompt {
 			readline.PcItem("bye"),
 			readline.PcItem("help"),
 			readline.PcItemDynamic(listDirs("./")),
-			readline.PcItemDynamic(listCmds("")),
+			//readline.PcItemDynamic(listCmds("")),
 		),
 	}
 	return p
 }
 
-type Prompt struct {
+type Shell struct {
 	completer *readline.PrefixCompleter
+	instance  *readline.Instance
 }
 
-func (p *Prompt) AddCompleters(add *readline.PrefixCompleter) {
+func (p *Shell) Instance() *readline.Instance { return p.instance }
+
+func (p *Shell) AddCompleters(add *readline.PrefixCompleter) {
 	c := p.completer.GetChildren()
 	p.completer.SetChildren(append(c, add))
 }
 
-func (p *Prompt) usage(w io.Writer) {
+func (p *Shell) usage(w io.Writer) {
 	io.WriteString(w, "commands:\n")
 	io.WriteString(w, p.completer.Tree("    "))
 }
 
-func (p *Prompt) filterInput(r rune) (rune, bool) {
+func (p *Shell) filterInput(r rune) (rune, bool) {
 	switch r {
 	// block CtrlZ feature
 	case readline.CharCtrlZ:
@@ -100,8 +102,13 @@ func (p *Prompt) filterInput(r rune) (rune, bool) {
 	return r, true
 }
 
-func (p *Prompt) Start() {
-	l, err := readline.NewEx(&readline.Config{
+func (p *Shell) Teardown() {
+	p.instance.Close()
+}
+
+func (p *Shell) Start(callback func(line string)) {
+	var err error
+	p.instance, err = readline.NewEx(&readline.Config{
 		Prompt:          "\033[31m»\033[0m ",
 		HistoryFile:     "/tmp/readline.tmp",
 		AutoComplete:    p.completer,
@@ -114,11 +121,10 @@ func (p *Prompt) Start() {
 	if err != nil {
 		panic(err)
 	}
-	defer l.Close()
 
-	log.SetOutput(l.Stderr())
+	log.SetOutput(p.instance.Stderr())
 	for {
-		line, err := l.Readline()
+		line, err := p.instance.Readline()
 		if err == readline.ErrInterrupt {
 			if len(line) == 0 {
 				break
@@ -134,31 +140,31 @@ func (p *Prompt) Start() {
 		case strings.HasPrefix(line, "mode "):
 			switch line[5:] {
 			case "vi":
-				l.SetVimMode(true)
+				p.instance.SetVimMode(true)
 			case "emacs":
-				l.SetVimMode(false)
+				p.instance.SetVimMode(false)
 			default:
 				println("invalid mode:", line[5:])
 			}
 		case line == "mode":
-			if l.IsVimMode() {
+			if p.instance.IsVimMode() {
 				println("current mode: vim")
 			} else {
 				println("current mode: emacs")
 			}
 		case line == "help":
-			p.usage(l.Stderr())
+			p.usage(p.instance.Stderr())
 		case strings.HasPrefix(line, "setprompt"):
 			if len(line) <= 10 {
 				log.Println("setprompt <prompt>")
 				break
 			}
-			l.SetPrompt(line[10:])
+			p.instance.SetPrompt(line[10:])
 		case line == "bye":
 			goto exit
 		case line == "":
 		default:
-			log.Println(":", strconv.Quote(line))
+			callback(line)
 		}
 	}
 exit:

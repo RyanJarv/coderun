@@ -51,6 +51,7 @@ type CRDocker struct {
 	Id      string
 	Info    types.ContainerJSON
 	Status  ContainerStatus
+	hijack  types.HijackedResponse
 	volumes map[string]string
 }
 
@@ -86,7 +87,14 @@ func (d *CRDocker) Run(c dockerRunConfig) {
 	ctx := context.Background()
 
 	Logger.info.Printf("Running: %s", c.Cmd)
-	config := &container.Config{Image: c.Image, Tty: true, OpenStdin: true, AttachStdin: true, AttachStdout: true, AttachStderr: true}
+	config := &container.Config{Image: c.Image}
+	if c.Attach {
+		config.Tty = true
+		config.OpenStdin = true
+		config.AttachStdin = true
+		config.AttachStdout = true
+		config.AttachStderr = true
+	}
 	if v := c.Cmd; v != nil {
 		config.Cmd = v
 	}
@@ -141,25 +149,27 @@ func (d *CRDocker) Run(c dockerRunConfig) {
 	var errStdout, errStdin error
 
 	if c.Attach {
-		hijack, err := d.Client.ContainerAttach(ctx, d.Id, types.ContainerAttachOptions{Stream: true, Stdin: true, Stdout: true, Stderr: true})
+		Logger.debug.Printf("Attaching container")
+		d.hijack, err = d.Client.ContainerAttach(ctx, d.Id, types.ContainerAttachOptions{Stream: true, Stdin: true, Stdout: true, Stderr: true})
 		if err != nil {
 			panic(err)
 		}
-		defer hijack.Close()
 
 		go func() {
 			if c.Stdout != nil {
-				_, errStdout = io.Copy(c.Stdout, hijack.Reader)
+				_, errStdout = io.Copy(c.Stdout, d.hijack.Reader)
 			} else {
-				_, errStdout = io.Copy(os.Stdout, hijack.Reader)
+				_, errStdout = io.Copy(os.Stdout, d.hijack.Reader)
 			}
 		}()
 
-		if c.Stdin != nil {
-			go func() {
-				_, errStdin = io.Copy(os.Stdin, hijack.Conn)
-			}()
-		}
+		go func() {
+			if c.Stdin != nil {
+				_, errStdin = io.Copy(d.hijack.Conn, c.Stdin)
+			} else {
+				_, errStdin = io.Copy(d.hijack.Conn, os.Stdin)
+			}
+		}()
 
 		if errStdout != nil {
 			log.Fatal("failed to capture stdout or stderr\n")
@@ -173,12 +183,10 @@ func (d *CRDocker) Run(c dockerRunConfig) {
 	d.inspect()
 
 	if c.Attach {
-		go func() {
-			_, err := d.Client.ContainerWait(ctx, d.Id)
-			if err != nil {
-				Logger.error.Fatal(err)
-			}
-		}()
+		_, err := d.Client.ContainerWait(ctx, d.Id)
+		if err != nil {
+			Logger.error.Fatal(err)
+		}
 	}
 }
 
@@ -192,6 +200,9 @@ func (d *CRDocker) inspect() {
 }
 
 func (d *CRDocker) Teardown(timeout time.Duration) {
+	if d.hijack != (types.HijackedResponse{}) {
+		d.hijack.Close()
+	}
 	if d.Status == Destroyed || d.Status == Removing {
 		Logger.debug.Printf("Container is already in %s state, skipping additional teardown", d.Status)
 		return

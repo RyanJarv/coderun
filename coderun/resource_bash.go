@@ -2,6 +2,8 @@ package coderun
 
 import (
 	"time"
+
+	"github.com/chzyer/readline"
 )
 
 func NewBashResource(r IRunEnvironment) IDockerResource {
@@ -20,6 +22,9 @@ func (r *BashResource) Name() string {
 
 func (r *BashResource) Register(e IRunEnvironment, p IProvider) bool {
 	r.env = e
+	if s := e.Shell(); s != nil {
+		s.AddCompleters(readline.PcItem("bash"))
+	}
 	if MatchCommandOrExt(e.Cmd(), "bash", ".sh") {
 		e.Registry().AddAt(SetupStep, &StepCallback{Step: "Setup", Provider: p, Resource: r, Callback: r.Setup})
 		e.Registry().AddAt(SetupStep, &StepCallback{Step: "Run", Provider: p, Resource: r, Callback: r.Run})
@@ -45,6 +50,7 @@ func (r *BashResource) Run(callback *StepCallback, currentStep *StepCallback) {
 		DestDir:   "/usr/src/myapp",
 		Attach:    true,
 		SourceDir: Cwd(),
+		Stdin:     r.env.Stdin(),
 		Cmd:       append([]string{"bash"}, r.env.Cmd()...),
 	})
 }

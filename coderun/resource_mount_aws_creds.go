@@ -1,10 +1,7 @@
 package coderun
 
 import (
-	"bufio"
-	"fmt"
 	"io"
-	"os"
 	"regexp"
 	"strings"
 )
@@ -14,12 +11,14 @@ func NewAwsCredsMountResource(r IRunEnvironment) *AwsCredsMountResource {
 }
 
 type AwsCredsMountResource struct {
-	fs CoderunFs
+	fs  CoderunFs
+	env IRunEnvironment
 }
 
 func (cr *AwsCredsMountResource) Name() string { return "awsCreds" }
 
 func (cr *AwsCredsMountResource) Register(e IRunEnvironment, p IProvider) bool {
+	cr.env = e
 	if len(e.Cmd()) == 0 {
 		return false
 	}
@@ -42,13 +41,14 @@ func (cr *AwsCredsMountResource) Fs() CoderunFs { return cr.fs }
 func (cr *AwsCredsMountResource) Setup(callback *StepCallback, currentStep *StepCallback) {
 	Logger.debug.Printf("awsMountCreds setup")
 	cr.fs = NewCoderunFs(cr.Path())
-	cr.fs.AddFileResource(&credFile{})
+	cr.fs.AddFileResource(&credFile{env: cr.env})
 	cr.fs.Setup()
 	go cr.fs.Serve()
 }
 
 type credFile struct {
 	IFileResource
+	env IRunEnvironment
 }
 
 func (cf *credFile) Path() string { return "credentials" }
@@ -56,24 +56,14 @@ func (cf *credFile) Path() string { return "credentials" }
 func (cf *credFile) Setup() { return }
 
 func (cf *credFile) Open() io.Reader {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Printf("\n***************************************************")
-	fmt.Printf("\n!!! Script is attempting to read ~/.aws/credentials")
-	fmt.Printf("\n***************************************************")
-	fmt.Printf("\nIs this expected? [yes/no] ")
-	text, err := reader.ReadString('\n')
-	fmt.Printf("\n")
-	text = strings.TrimRight(text, "\n")
-	if err != nil {
-		Logger.error.Fatal(err)
-	}
+	resp := cf.env.Ask("!!! Script is attempting to read ~/.aws/credentials, is this expected? [yes/no] ")
 
-	var resp io.Reader
-	if text == "yes" {
-		resp = strings.NewReader("***super secret keys stored on the host machine***\n")
+	var out io.Reader
+	if resp == "yes" {
+		out = strings.NewReader("***super secret keys stored on the host machine***\n")
 	} else {
 		Logger.warn.Printf("Restricting access to ~/.aws/credentials")
-		resp = strings.NewReader("")
+		out = strings.NewReader("")
 	}
-	return resp
+	return out
 }
