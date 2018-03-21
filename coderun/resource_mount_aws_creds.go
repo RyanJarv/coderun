@@ -56,7 +56,7 @@ func (cf *credFile) Path() string { return "credentials" }
 func (cf *credFile) Setup() { return }
 
 func (cf *credFile) Open() io.Reader {
-	resp := cf.env.Ask("!!! Script is attempting to read ~/.aws/credentials, is this expected? [yes/no] ")
+	resp := cf.env.Stdin().Prompt("!!! Script is attempting to read ~/.aws/credentials, is this expected? [yes/no] ")
 
 	var out io.Reader
 	if resp == "yes" {

@@ -1,14 +1,10 @@
 package coderun
 
 import (
-	"bufio"
 	"bytes"
-	"fmt"
-	"io"
 	"os"
 	"path"
 	"strings"
-	"sync"
 
 	"github.com/RyanJarv/coderun/coderun/shell"
 )
@@ -29,8 +25,7 @@ type IRunEnvironment interface {
 	Providers() map[string]IProvider
 	Registry() *Registry
 	Shell() *shell.Shell
-	Ask(string) string
-	Stdin() io.Reader
+	Stdin() *shell.StdinSwitch
 	Cmd() []string
 }
 
@@ -46,9 +41,7 @@ type RunEnvironment struct {
 	IgnoreFiles []string
 	Flags       map[string]*string
 	shell       *shell.Shell
-	askR        io.Reader
-	askMutex    *sync.Mutex
-	stdin       *io.PipeReader
+	stdin       *shell.StdinSwitch
 	CRDocker    ICRDocker
 	Exec        func(...string) string
 	registry    *Registry
@@ -57,21 +50,8 @@ type RunEnvironment struct {
 func (e *RunEnvironment) Providers() map[string]IProvider { return e.providers }
 func (e *RunEnvironment) Cmd() []string                   { return e.cmd }
 func (e *RunEnvironment) Shell() *shell.Shell             { return e.shell }
-func (e *RunEnvironment) Stdin() io.Reader                { return e.stdin }
+func (e *RunEnvironment) Stdin() *shell.StdinSwitch       { return e.stdin }
 func (e *RunEnvironment) Registry() *Registry             { return e.registry }
-func (e *RunEnvironment) Ask(p string) string {
-	e.askMutex.Lock()
-	ask := shell.NewAsk(e.askR, os.Stdout)
-	fmt.Fprintln(ask, p)
-	out, err := bufio.NewReader(ask).ReadBytes('\n')
-	if err != nil {
-		if err != io.EOF {
-			Logger.error.Fatal(err)
-		}
-	}
-	e.askMutex.Unlock()
-	return string(out)
-}
 
 type Stdio struct {
 	buf bytes.Buffer
@@ -107,16 +87,10 @@ func CreateRunEnvironment() *RunEnvironment {
 		Name:                path.Base(Cwd()),
 		EntryPoint:          "lambda_handler",
 		Flags:               make(map[string]*string),
-		askMutex:            &sync.Mutex{},
+		stdin:               shell.NewStdinSwitch(os.Stdin, os.Stdout),
 		Exec:                Exec,
 		registry:            NewRegistry(),
 	}
-
-	var stdinW, askW *io.PipeWriter
-	runEnv.stdin, stdinW = io.Pipe()
-	runEnv.askR, askW = io.Pipe()
-	w := io.MultiWriter(stdinW, askW)
-	go func() { _, _ = io.Copy(w, os.Stdin) }()
 
 	return runEnv
 }

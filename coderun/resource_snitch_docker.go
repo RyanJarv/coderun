@@ -43,7 +43,7 @@ func (sd *SnitchDockerResource) Setup(callback *StepCallback, currentStep *StepC
 		PidMode:    "host",
 	})
 
-	sd.dsclient = &dsclient.Client{Ask: sd.env.Ask}
+	sd.dsclient = &dsclient.Client{Ask: sd.env.Stdin().Prompt}
 	sd.dsclient.Start("tcp", "localhost:33505")
 }
 
