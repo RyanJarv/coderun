@@ -110,7 +110,7 @@ func (d *CRDocker) Run(c dockerRunConfig) {
 	}
 
 	if c.Port != 0 {
-		log.Printf("Setting port %v", c.HostPort)
+		Logger.debug.Printf("Setting port %v", c.HostPort)
 		portBindings = nat.PortMap{port: []nat.PortBinding{{HostIP: "127.0.0.1", HostPort: strconv.Itoa(c.HostPort)}}}
 		config.ExposedPorts = nat.PortSet{
 			port: struct{}{},

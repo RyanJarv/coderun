@@ -25,24 +25,24 @@ Moved these to ./coderun/icebox until the code is more stable
   * Ruby
   * Rails
 
-### Docker/Bash/Mount example
+### Docker/Bash/Mount/Dockersnitch example
 ```
-$ export DOCKER_API_VERSION=1.35 #TODO: figure out why this is needed
-$ go run ../main.go -- test.sh 
-2018/03/03 20:11:53 Settin up MountProvider
-{"status":"Pulling from library/ubuntu","id":"latest"}
-{"status":"Digest: sha256:e27e9d7f7f28d67aa9e2d7540bdc2b33254b452ee8e60f388875e5b7d9b2b696"}
-{"status":"Status: Image is up to date for ubuntu:latest"}
+$ go run ../main.go 
+» ./test.sh 
+{"status":"Pulling from library/bash","id":"latest"}
+{"status":"Digest: sha256:717f5f1e5f15624166a6abaa8f5c99a5f812c379f3a5f1a31db1dd7206ef9107"}
+{"status":"Status: Image is up to date for bash:latest"}
 hello from bash
+running wget -O /tmp/wgetout http://google.com
+Connecting to google.com (172.217.0.142:80)
+Allow connection from 172.217.0.142? [w/b] w
+Connecting to www.google.com (74.125.136.105:80)
+Allow connection from 74.125.136.105? [w/b] w
+wgetout              100% |*******************************| 12499   0:00:00 ETA
 running `cat ~/.aws/credentials` from inside docker
-
-***************************************************
-!!! Script is attempting to read ~/.aws/credentials
-***************************************************
-Is this expected? [yes/no] yes
-
-***super secret keys stored on the host machine***
+!!! Script is attempting to read ~/.aws/credentials, is this expected? [yes/no] yes
 bye from bash
+» ^C
 $ 
 ```
 
