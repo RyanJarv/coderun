@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func NewAwsCredsMountResource(r IRunEnvironment) *AwsCredsMountResource {
+func NewAwsCredsMountResource(r IRunEnvironment) IMountResource {
 	return &AwsCredsMountResource{}
 }
 

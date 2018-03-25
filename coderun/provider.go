@@ -89,15 +89,15 @@ func CreateRunEnvironment() *RunEnvironment {
 		Flags:               make(map[string]*string),
 		stdin:               shell.NewStdinSwitch(os.Stdin, os.Stdout),
 		Exec:                Exec,
-		registry:            NewRegistry(),
 	}
 
 	return runEnv
 }
 
 func run(e *RunEnvironment, cmd []string) {
+	e.registry = NewRegistry()
 	e.cmd = cmd
-	for _, p := range (*e).providers {
+	for _, p := range e.providers {
 		p.Register(e)
 	}
 	e.registry.Run()

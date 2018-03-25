@@ -1,7 +1,5 @@
 package coderun
 
-import "time"
-
 type IDockerResource interface {
 	IResource
 	Setup(*StepCallback, *StepCallback)
@@ -33,6 +31,7 @@ func (p *DockerProvider) Name() string {
 
 func (p *DockerProvider) Register(e IRunEnvironment) bool {
 	registered := false
+	e.Registry().AddAt(TeardownStep+10, &StepCallback{Step: "Teardown", Provider: p, Callback: p.Teardown})
 	for name, r := range p.resources {
 		if r.Register(e, p) {
 			Logger.info.Printf("Registering resource %s", name)
@@ -59,5 +58,5 @@ func (p *DockerProvider) Setup(callback *StepCallback, currentStep *StepCallback
 }
 
 func (p *DockerProvider) Teardown(callback *StepCallback, currentStep *StepCallback) {
-	p.buildkit.Teardown(4 * time.Second)
+	NewCRDocker().DockerKillLabel("coderun")
 }

@@ -15,6 +15,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
@@ -55,6 +56,24 @@ type CRDocker struct {
 	volumes map[string]string
 }
 
+func (d *CRDocker) DockerKillLabel(label string) {
+	args := filters.NewArgs()
+	args.Add("label", label)
+	resp, err := d.Client.ContainerList(context.Background(), types.ContainerListOptions{Filters: args})
+	if err != nil {
+		Logger.error.Fatal(err)
+	}
+	timeout := time.Second * 4
+	for _, c := range resp {
+		Logger.info.Printf("Found %s matching label %s", c.ID, label)
+		if err := d.stop(c.ID, timeout); err != nil {
+			Logger.info.Printf("Could not stop %s in timeout %v, killing", d.Id, timeout)
+			d.kill(c.ID)
+		}
+		d.remove(c.ID)
+	}
+}
+
 func (d *CRDocker) onCtrlC() {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt)
@@ -87,7 +106,7 @@ func (d *CRDocker) Run(c dockerRunConfig) {
 	ctx := context.Background()
 
 	Logger.info.Printf("Running: %s", c.Cmd)
-	config := &container.Config{Image: c.Image}
+	config := &container.Config{Image: c.Image, Labels: map[string]string{"coderun": ""}}
 	if c.Attach {
 		config.Tty = true
 		config.OpenStdin = true
@@ -200,6 +219,10 @@ func (d *CRDocker) inspect() {
 }
 
 func (d *CRDocker) Teardown(timeout time.Duration) {
+	if d == nil {
+		Logger.warn.Printf("CRDocker instance was nil")
+		return
+	}
 	if d.hijack != (types.HijackedResponse{}) {
 		d.hijack.Close()
 	}
@@ -216,26 +239,38 @@ func (d *CRDocker) Teardown(timeout time.Duration) {
 	d.Status = Destroyed
 }
 
-func (d *CRDocker) Kill() {
-	Logger.info.Printf("Killing container %s", d.Id)
-	if err := d.Client.ContainerKill(context.Background(), d.Id, "SIGTERM"); err != nil {
+func (d *CRDocker) kill(id string) {
+	Logger.info.Printf("Killing container %s", id)
+	if err := d.Client.ContainerKill(context.Background(), id, "SIGTERM"); err != nil {
 		Logger.error.Fatal(err)
 	}
 }
 
-func (d *CRDocker) Stop(timeout time.Duration) error {
-	Logger.info.Printf("Stopping container %s", d.Id)
-	if err := d.Client.ContainerStop(context.Background(), d.Id, &timeout); err != nil {
+func (d *CRDocker) Kill() {
+	d.kill(d.Id)
+}
+
+func (d *CRDocker) stop(id string, timeout time.Duration) error {
+	Logger.info.Printf("Stopping container %s", id)
+	if err := d.Client.ContainerStop(context.Background(), id, &timeout); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (d *CRDocker) Remove() {
-	Logger.info.Printf("Removing container %s", d.Id)
-	if err := d.Client.ContainerRemove(context.Background(), d.Id, types.ContainerRemoveOptions{}); err != nil {
+func (d *CRDocker) Stop(timeout time.Duration) error {
+	return d.stop(d.Id, timeout)
+}
+
+func (d *CRDocker) remove(id string) {
+	Logger.info.Printf("Removing container %s", id)
+	if err := d.Client.ContainerRemove(context.Background(), id, types.ContainerRemoveOptions{}); err != nil {
 		Logger.error.Fatal(err)
 	}
+}
+
+func (d *CRDocker) Remove() {
+	d.remove(d.Id)
 }
 
 func (d *CRDocker) buildImageStep(source string, args ...string) string {

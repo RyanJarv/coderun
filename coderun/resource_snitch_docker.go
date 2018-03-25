@@ -7,7 +7,7 @@ import (
 	dsclient "github.com/RyanJarv/dockersnitch/dockersnitch/client"
 )
 
-func NewSnitchDockerResource(r IRunEnvironment) *SnitchDockerResource {
+func NewSnitchDockerResource(r IRunEnvironment) ISnitchResource {
 	return &SnitchDockerResource{}
 }
 

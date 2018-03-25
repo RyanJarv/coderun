@@ -1,6 +1,8 @@
 package coderun
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"os/signal"
 	"regexp"
@@ -50,10 +52,11 @@ func NewRegistry() *Registry {
 }
 
 type Registry struct {
-	Levels   [][]*StepCallback
-	Before   []*StepCallbackSearch
-	After    []*StepCallbackSearch
-	Teardown bool
+	Levels       [][]*StepCallback
+	currentOrder int
+	Before       []*StepCallbackSearch
+	After        []*StepCallbackSearch
+	Teardown     bool
 }
 
 func (r *Registry) AddAt(l int, s *StepCallback) {
@@ -80,20 +83,43 @@ func (r *Registry) onCtrlC() {
 	}()
 }
 
-func (r *Registry) Run() {
-	for order, steps := range r.Levels {
-		if r.Teardown && order < TeardownStep {
+func (r *Registry) runStep(step *StepCallback) (err error) {
+	defer func() {
+		if recov := recover(); recov != nil {
+			err = errors.New(fmt.Sprint(recov))
+		}
+	}()
+	Logger.debug.Printf("Searching for callbacks to run before %s.%s.%s", step.Provider.Name(), getNameOrEmpty(step.Resource), step.Step)
+	r.runMatching(r.Before, step)
+	Logger.info.Printf("Runlevel %d: Running %s for resource %s, provider %s", r.currentOrder, step.Step, getNameOrEmpty(step.Resource), step.Provider.Name())
+	step.Callback(step, step)
+	Logger.debug.Printf("Searching for callbacks to run after %s.%s.%s", step.Provider.Name(), getNameOrEmpty(step.Resource), step.Step)
+	r.runMatching(r.After, step)
+	return
+}
+
+func (r *Registry) run() {
+	var steps []*StepCallback
+	for r.currentOrder, steps = range r.Levels {
+		if r.Teardown && r.currentOrder < TeardownStep {
 			continue
 		}
 		for _, step := range steps {
-			Logger.debug.Printf("Searching for callbacks to run before %s.%s.%s", step.Provider.Name(), getNameOrEmpty(step.Resource), step.Step)
-			r.runMatching(r.Before, step)
-			Logger.info.Printf("Runlevel %d: Running %s for resource %s, provider %s", order, step.Step, getNameOrEmpty(step.Resource), step.Provider.Name())
-			step.Callback(step, step)
-			Logger.debug.Printf("Searching for callbacks to run after %s.%s.%s", step.Provider.Name(), getNameOrEmpty(step.Resource), step.Step)
-			r.runMatching(r.After, step)
+			err := r.runStep(step)
+			if err != nil && r.currentOrder >= TeardownStep {
+				Logger.error.Printf("Panic raised while running teardown step. err: %s", err)
+			} else if err != nil && r.currentOrder < TeardownStep {
+				Logger.error.Printf("Error occured, cleaning up. err: ", err)
+				r.Teardown = true
+			}
 		}
 	}
+}
+
+func (r *Registry) Run() {
+	defer func() {
+	}()
+	r.run()
 }
 
 func (r *Registry) runMatching(callbackSearchList []*StepCallbackSearch, step *StepCallback) {
