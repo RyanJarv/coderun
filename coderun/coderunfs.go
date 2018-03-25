@@ -79,7 +79,7 @@ func (fs CoderunFs) OpenDir(name string, context *fuse.Context) (c []fuse.DirEnt
 	if name == "" {
 		dir := make([]fuse.DirEntry, 0, len(fs.fileResources))
 		i := 0
-		for name, _ := range fs.fileResources {
+		for name := range fs.fileResources {
 			i++
 			dir[i] = fuse.DirEntry{Name: name, Mode: fuse.S_IFREG}
 		}
