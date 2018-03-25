@@ -15,5 +15,5 @@ before_script:
 
 script:
   - test -z $(gofmt -s -l $GO_FILES)         # Fail if a .go file hasn't been formatted with gofmt
-  - go test -v ./...
+  - go test -v ./coderun/*.go
   - go build -o bin

@@ -40,7 +40,7 @@ type StepSearch struct {
 	Step     *regexp.Regexp
 }
 
-func NewRegistry() *Registry {
+func NewRegistry() IRegistry {
 	r := &Registry{
 		Levels:   make([][]*StepCallback, 499),
 		Before:   []*StepCallbackSearch{},
@@ -49,6 +49,13 @@ func NewRegistry() *Registry {
 	}
 	r.onCtrlC()
 	return r
+}
+
+type IRegistry interface {
+	AddAt(int, *StepCallback)
+	AddBefore(*StepSearch, *StepCallback)
+	AddAfter(*StepSearch, *StepCallback)
+	Run()
 }
 
 type Registry struct {

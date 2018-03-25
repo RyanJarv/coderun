@@ -11,41 +11,40 @@ import (
 
 type BashSuite struct {
 	suite.Suite
-	Resource       *Resource
-	CRDockerMock   *CRDockerMock
-	RunEnvironment *RunEnvironment
-	ProviderEnv    IProviderEnv
+	Provider     IProvider
+	Resource     *BashResource
+	CRDockerMock *CRDockerMock
+	RegistryMock *RegistryMock
 }
 
 func (suite *BashSuite) SetupTest() {
-	suite.Resource = BashResource()
 	suite.CRDockerMock = &CRDockerMock{}
-	suite.RunEnvironment = &RunEnvironment{CRDocker: suite.CRDockerMock}
-	suite.ProviderEnv = dockerProviderEnv{}
+	suite.RegistryMock = NewRegistryMock()
+	env := &RunEnvironment{registry: suite.RegistryMock}
+	suite.Resource = &BashResource{bash: suite.CRDockerMock, env: env}
 }
 
 func (suite *BashSuite) TestRegister() {
-	suite.RunEnvironment.Cmd = []string{"bash"}
-	assert.True(suite.T(), suite.Resource.Register(suite.RunEnvironment, suite.ProviderEnv))
+	suite.RegistryMock.On("AddAt", mock.AnythingOfType("int"), mock.Anything)
+	suite.Resource.env.SetCmd([]string{"bash", "bash.sh"})
+	assert.True(suite.T(), suite.Resource.Register(suite.Resource.env, suite.Provider))
 }
 
 func (suite *BashSuite) TestDoesntRegisterOnWrongCmd() {
-	suite.RunEnvironment.Cmd = []string{"asdf"}
-	assert.False(suite.T(), suite.Resource.Register(suite.RunEnvironment, suite.ProviderEnv))
+	suite.Resource.env.SetCmd([]string{"asdf"})
+	assert.False(suite.T(), suite.Resource.Register(suite.Resource.env, suite.Provider))
 }
 
 func (suite *BashSuite) TestSetup() {
-	d := suite.CRDockerMock
-	d.On("Pull", mock.AnythingOfType("string"))
-	suite.Resource.Setup(suite.RunEnvironment, suite.ProviderEnv)
-	d.AssertExpectations(suite.T())
+	suite.CRDockerMock.On("Pull", mock.AnythingOfType("string"))
+	suite.Resource.Setup(&StepCallback{}, &StepCallback{})
+	suite.CRDockerMock.AssertExpectations(suite.T())
 }
 
 func (suite *BashSuite) TestRun() {
-	m := suite.CRDockerMock
-	m.On("Run", mock.AnythingOfType(fmt.Sprintf("%T", dockerRunConfig{})))
-	suite.Resource.Run(suite.RunEnvironment, suite.ProviderEnv)
-	m.AssertExpectations(suite.T())
+	suite.CRDockerMock.On("Run", mock.AnythingOfType(fmt.Sprintf("%T", dockerRunConfig{})))
+	suite.Resource.Run(&StepCallback{}, &StepCallback{})
+	suite.CRDockerMock.AssertExpectations(suite.T())
 }
 
 func TestBashSuite(t *testing.T) {

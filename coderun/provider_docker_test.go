@@ -1,6 +1,10 @@
 package coderun
 
-import "github.com/stretchr/testify/mock"
+import (
+	"time"
+
+	"github.com/stretchr/testify/mock"
+)
 
 type CRDockerMock struct {
 	ICRDocker
@@ -17,6 +21,10 @@ func (m *CRDockerMock) Run(c dockerRunConfig) {
 
 func (m *CRDockerMock) Stop(name string) {
 	m.Called(name)
+}
+
+func (m *CRDockerMock) Teardown(timeout time.Duration) {
+	m.Called(timeout)
 }
 
 func (m *CRDockerMock) getImageName() string {

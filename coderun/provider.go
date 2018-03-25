@@ -23,10 +23,12 @@ type IResource interface {
 
 type IRunEnvironment interface {
 	Providers() map[string]IProvider
-	Registry() *Registry
+	Registry() IRegistry
 	Shell() *shell.Shell
 	Stdin() *shell.StdinSwitch
 	Cmd() []string
+	SetCmd([]string)
+	Docker() ICRDocker
 }
 
 type RunEnvironment struct {
@@ -44,14 +46,16 @@ type RunEnvironment struct {
 	stdin       *shell.StdinSwitch
 	CRDocker    ICRDocker
 	Exec        func(...string) string
-	registry    *Registry
+	registry    IRegistry
 }
 
 func (e *RunEnvironment) Providers() map[string]IProvider { return e.providers }
+func (e *RunEnvironment) SetCmd(c []string)               { e.cmd = c }
 func (e *RunEnvironment) Cmd() []string                   { return e.cmd }
 func (e *RunEnvironment) Shell() *shell.Shell             { return e.shell }
 func (e *RunEnvironment) Stdin() *shell.StdinSwitch       { return e.stdin }
-func (e *RunEnvironment) Registry() *Registry             { return e.registry }
+func (e *RunEnvironment) Registry() IRegistry             { return e.registry }
+func (e *RunEnvironment) Docker() ICRDocker               { return e.CRDocker }
 
 type Stdio struct {
 	buf bytes.Buffer
@@ -96,7 +100,7 @@ func CreateRunEnvironment() *RunEnvironment {
 
 func run(e *RunEnvironment, cmd []string) {
 	e.registry = NewRegistry()
-	e.cmd = cmd
+	e.SetCmd(cmd)
 	for _, p := range e.providers {
 		p.Register(e)
 	}

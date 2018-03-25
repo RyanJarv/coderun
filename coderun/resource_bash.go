@@ -6,13 +6,13 @@ import (
 	"github.com/chzyer/readline"
 )
 
-func NewBashResource(r IRunEnvironment) IDockerResource {
+func NewBashResource(r IRunEnvironment) *BashResource {
 	return &BashResource{}
 }
 
 type BashResource struct {
 	IResource
-	bash *CRDocker
+	bash ICRDocker
 	env  IRunEnvironment
 }
 
@@ -22,6 +22,7 @@ func (r *BashResource) Name() string {
 
 func (r *BashResource) Register(e IRunEnvironment, p IProvider) bool {
 	r.env = e
+	r.bash = NewCRDocker()
 	if s := e.Shell(); s != nil {
 		s.AddCompleters(readline.PcItem("bash"))
 	}
@@ -40,7 +41,6 @@ func (r *BashResource) RegisterMount(local string, remote string) {
 }
 
 func (r *BashResource) Setup(callback *StepCallback, currentStep *StepCallback) {
-	r.bash = NewCRDocker()
 	r.bash.Pull("bash")
 }
 

@@ -8,6 +8,7 @@ import (
 )
 
 func TestMatchCommandOrExt(t *testing.T) {
+	Logger = SetupLogger("error")
 	assert := assert.New(t)
 	assert.True(MatchCommandOrExt([]string{"test.sh"}, "bash", ".sh"))
 	assert.True(MatchCommandOrExt([]string{"test.sh", "-r", "fsic"}, "bash", ".sh"))

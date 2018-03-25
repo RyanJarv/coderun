@@ -2,6 +2,7 @@ package coderun
 
 import (
 	"io"
+	"time"
 
 	"github.com/docker/docker/api/types/mount"
 )
@@ -29,4 +30,5 @@ type ICRDocker interface {
 	newImageName() string
 	getOrBuildImage(string, ...[]string) string
 	getImageName() string
+	Teardown(time.Duration)
 }
