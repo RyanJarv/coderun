@@ -8,11 +8,12 @@ Running code in an isolated environment should be stupid easy (and secure)
 ## Providers/Resources
 ### Current
 * Docker
-  * Python
-* Mount
+  * Bash
+* Mount (Prompts on shared file access)
   * AWS Credentials
+* Snitch (Prompts on new connection attempt)
+  * Docker
   
-  Mount registers files/directories and optionally allows you to forward the hosts version to the script environment on access
 
 
 ### IceBox
@@ -25,7 +26,7 @@ Moved these to ./coderun/icebox until the code is more stable
   * Ruby
   * Rails
 
-### Docker/Bash/Mount/Dockersnitch example
+### Bash/Mount/Dockersnitch example
 ```
 $ go run ../main.go 
 » ./test.sh 
@@ -48,7 +49,6 @@ $
 
 ### Lambda/Python example
 ```
-$ export DOCKER_API_VERSION=1.35
 $ go run ../../main.go -l info -p lambda -- ./test.py
 INFO2018/02/11 21:28:17 Creating zip file at .coderun/lambda-xvlbzgbaicmrajwwhthc.zip
 INFO2018/02/11 21:28:17 Found file: test.py
