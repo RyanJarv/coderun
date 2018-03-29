@@ -60,9 +60,15 @@ REPORT RequestId: c45aac5a-0fa4-11e8-b6ea-cf2bba77654e  Duration: 0.33 ms   Bill
 $
 ```
 
+## Ideas
+* Watch for new listening ports and ask to forward them to the host
+  * Can docker do this after a container is started?
+* Make a few repos as examples of well hidden backdoors this tool can protect against
+
 ## Development
 The code is meant to be extendable to support easily adding languages/features in the future. Everything is broken down into providers, resoruces, and steps.
 
 A provider introduces a new feature (docker, lambda, file sharing, etc..) which is passed a run environment it then has the option to register any steps and/or attempt to register it's resources. Resources are variations of a feature to support a specific implentation such as a runtime language or a specific host/directory to share. Resources also recieve the run environment and can register additional steps.
 
 Steps are callbacks with some attached info about when they should run which can be one of setup, deploy, run, teardown or a custom stage somewhere inbetween. They can also be registered to run before/after any matching provider/resource/step combination, so you could say run a given callback that has a provider of foo and a resource of bar and matches any step.
+
