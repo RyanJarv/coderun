@@ -64,6 +64,7 @@ $
 * Watch for new listening ports and ask to forward them to the host
   * Can docker do this after a container is started?
 * Make a few repos as examples of well hidden backdoors this tool can protect against
+* Some of this might make sense as integrations to other tools like bundler, virtualenv, npm, kitchen, terraform etc..
 
 ## Development
 The code is meant to be extendable to support easily adding languages/features in the future. Everything is broken down into providers, resoruces, and steps.
