@@ -12,7 +12,7 @@ Since I'm using the word sandbox here I should mention I realize docker isn't of
 
 For something similar in behvior on Linux see Jess Fraz's [dockerfiles](https://github.com/jessfraz/dockerfiles) repo. Her project is also in part the inspiration for the next version of coderun.
 
-Everything below here is about the original coderun project.
+Everything below here is about the original coderun project (will keep this on the [coderun-v1](https://github.com/RyanJarv/coderun/tree/coderun-v1) branch).
 
 ## Goal
 Running code in an isolated environment should be stupid easy (and secure)
