@@ -1,9 +1,23 @@
 [![Build Status](https://travis-ci.org/RyanJarv/coderun.svg?branch=master)](https://travis-ci.org/RyanJarv/coderun)
 
-This is just an initial concept and will mostly likely not work for you currently.
+After taking a break from this, mostly stuck and thinking about where I wanted to take this project next, I believe I need to take a different approach. I still want to support the same high level goals, but I think for now, this should behave more like a package manager focused on running interactive sandboxed containers on Darwin.
+
+To reduce scope from what I already have here I will likely for now be dropping [dockersnitch](https://github.com/RyanJarv/dockersnitch) and lambda, these are both something I would very much like to support (along with many other things) but for now I'm thinking the package manager and config aspects of this is what I need to focus on in the short term. The rest of this section is what I believe this should look like.
+
+At the moment I believe packages will consist of config like files in a directory in the user's path. These config's will behave like executables by referencing coderun on the shebang line, meaning coderun will get executed with the path to the config file as the first argument. The config files may need to contain executable code, but when they do this should be clear and easily auditable.
+
+So from a high level perspective if Dockerfile is for building containers and docker-compose.yml is for dev environment's then coderun.yml (or whatever) would be for end user's.
+
+Since I'm using the word sandbox here I should mention I realize docker isn't often considered a great security boundry. The threat model I'm considering, at least initially, is not unpatched or zero day exploits but instead anything you can always do with normal unix tools as an unprivliged user on a admin's computer. Although kernel exploits and related do seem like less of an issue since Docker on Mac run's in a VM, I am considering that coincidental and don't consider kernel/docker exploits in the scope of this project.
+
+For something similar in behvior on Linux see Jess Fraz's [dockerfiles](https://github.com/jessfraz/dockerfiles) repo. Her project is also in part the inspiration for the next version of coderun.
+
+Everything below here is about the original coderun project.
 
 ## Goal
 Running code in an isolated environment should be stupid easy (and secure)
+
+NOTE: This is just an initial concept and will mostly likely not work for you currently.
 
 ## Providers/Resources
 ### Current
