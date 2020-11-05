@@ -1,5 +1,12 @@
 [![Build Status](https://travis-ci.org/RyanJarv/coderun.svg?branch=master)](https://travis-ci.org/RyanJarv/coderun)
+## Update 11/4/2020
+Right now thinking this would be interesting to approach from the other direction, going back to a parser in golang, but focusing on integrating it with state machine. Shell's tend to get used for data processing (so I'm told), so having a shell directly on AWS integrating natively with other services seems like it may be useful to someone (maybe even me if I find a job sometime soon). I think I'll start from scratch to get a PoC working here first to further develop the idea, this code however may be useful once I have a better idea where I'm going with this.
 
+I think it makes sense to approach from the parsing side of things due to the need of failing if a statement isn't picked up by our PATH/aliases/overrides/or whatever. Also I don't think you can override things like pipes and redirection operators. Either way though I believe this will be easier for me to understand from the direction of writing a parser than trying to piece together various operations with obscure shell functionality.
+
+[For now I'm using this repo for the PoC](https://github.com/RyanJarv/lsh/blob/main/README.md)
+
+## Update 4/8/2020
 After taking a break from this, mostly stuck and thinking about where I wanted to take this project next, I believe I need to take a different approach. I still want to support the same high level goals, but I think for now, this should behave more like a package manager focused on running interactive sandboxed containers on Darwin.
 
 To reduce scope from what I already have here I will likely for now be dropping [dockersnitch](https://github.com/RyanJarv/dockersnitch) and lambda, these are both something I would very much like to support (along with many other things) but for now I'm thinking the package manager and config aspects of this is what I need to focus on in the short term. The rest of this section is what I believe this should look like.
