@@ -3,6 +3,7 @@ package coderun
 import (
 	"errors"
 	"fmt"
+	"github.com/RyanJarv/coderun/coderun/lib"
 	"os"
 	"os/signal"
 	"regexp"
@@ -71,12 +72,12 @@ func (r *Registry) AddAt(l int, s *StepCallback) {
 }
 
 func (r *Registry) AddBefore(search *StepSearch, s *StepCallback) {
-	Logger.info.Printf("Adding step %s.%s.%s before %s.%s.%s", s.Provider.Name(), getNameOrEmpty(s.Resource), s.Step, search.Provider, search.Resource, search.Step)
+	Logger.Info.Printf("Adding step %s.%s.%s before %s.%s.%s", s.Provider.Name(), lib.getNameOrEmpty(s.Resource), s.Step, search.Provider, search.Resource, search.Step)
 	r.Before = append(r.Before, &StepCallbackSearch{Search: search, Callback: s})
 }
 
 func (r *Registry) AddAfter(search *StepSearch, s *StepCallback) {
-	Logger.debug.Printf("Adding step %s.%s.%s after %s.%s.%s", s.Provider.Name(), getNameOrEmpty(s.Resource), s.Step, search.Provider, search.Resource, s.Step)
+	Logger.Debug.Printf("Adding step %s.%s.%s after %s.%s.%s", s.Provider.Name(), lib.getNameOrEmpty(s.Resource), s.Step, search.Provider, search.Resource, s.Step)
 	r.After = append(r.After, &StepCallbackSearch{Search: search, Callback: s})
 }
 
@@ -96,11 +97,11 @@ func (r *Registry) runStep(step *StepCallback) (err error) {
 			err = errors.New(fmt.Sprint(recov))
 		}
 	}()
-	Logger.debug.Printf("Searching for callbacks to run before %s.%s.%s", step.Provider.Name(), getNameOrEmpty(step.Resource), step.Step)
+	Logger.Debug.Printf("Searching for callbacks to run before %s.%s.%s", step.Provider.Name(), lib.getNameOrEmpty(step.Resource), step.Step)
 	r.runMatching(r.Before, step)
-	Logger.info.Printf("Runlevel %d: Running %s for resource %s, provider %s", r.currentOrder, step.Step, getNameOrEmpty(step.Resource), step.Provider.Name())
+	Logger.Info.Printf("Runlevel %d: Running %s for resource %s, provider %s", r.currentOrder, step.Step, lib.getNameOrEmpty(step.Resource), step.Provider.Name())
 	step.Callback(step, step)
-	Logger.debug.Printf("Searching for callbacks to run after %s.%s.%s", step.Provider.Name(), getNameOrEmpty(step.Resource), step.Step)
+	Logger.Debug.Printf("Searching for callbacks to run after %s.%s.%s", step.Provider.Name(), lib.getNameOrEmpty(step.Resource), step.Step)
 	r.runMatching(r.After, step)
 	return
 }
@@ -114,9 +115,9 @@ func (r *Registry) run() {
 		for _, step := range steps {
 			err := r.runStep(step)
 			if err != nil && r.currentOrder >= TeardownStep {
-				Logger.error.Printf("Panic raised while running teardown step. err: %s", err)
+				Logger.Error.Printf("Panic raised while running teardown step. err: %s", err)
 			} else if err != nil && r.currentOrder < TeardownStep {
-				Logger.error.Printf("Error occured, cleaning up. err: ", err)
+				Logger.Error.Printf("Error occured, cleaning up. err: ", err)
 				r.Teardown = true
 			}
 		}
@@ -133,8 +134,8 @@ func (r *Registry) runMatching(callbackSearchList []*StepCallbackSearch, step *S
 	for _, callbackSearch := range callbackSearchList {
 		c := callbackSearch.Callback
 		s := callbackSearch.Search
-		if s.Provider.MatchString(step.Provider.Name()) && s.Resource.MatchString(getNameOrEmpty(step.Resource)) && s.Step.MatchString(step.Step) {
-			Logger.info.Printf("Running %s.%s.%s because it was registered with %s.%s.%s", c.Provider.Name(), getNameOrEmpty(c.Resource), c.Step, step.Provider.Name(), getNameOrEmpty(step.Resource), step.Step)
+		if s.Provider.MatchString(step.Provider.Name()) && s.Resource.MatchString(lib.getNameOrEmpty(step.Resource)) && s.Step.MatchString(step.Step) {
+			Logger.Info.Printf("Running %s.%s.%s because it was registered with %s.%s.%s", c.Provider.Name(), lib.getNameOrEmpty(c.Resource), c.Step, step.Provider.Name(), lib.getNameOrEmpty(step.Resource), step.Step)
 			c.Callback(c, step)
 		}
 	}

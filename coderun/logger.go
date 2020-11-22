@@ -9,10 +9,10 @@ import (
 var Logger *LoggerType
 
 type LoggerType struct {
-	debug *log.Logger
-	info  *log.Logger
-	warn  *log.Logger
-	error *log.Logger
+	Debug *log.Logger
+	Info  *log.Logger
+	Warn  *log.Logger
+	Error *log.Logger
 }
 
 func SetupLogger(level string) *LoggerType {
@@ -27,23 +27,23 @@ func SetupLogger(level string) *LoggerType {
 
 	// Send log output to /dev/null if we don't set the right flag
 	switch strings.ToLower(level) {
-	case "debug":
+	case "Debug":
 		errorOut, warnOut, infoOut, debugOut = os.Stderr, os.Stderr, os.Stderr, os.Stderr
-	case "info":
+	case "Info":
 		errorOut, warnOut, infoOut, debugOut = os.Stderr, os.Stderr, os.Stderr, devNull
-	case "warn":
+	case "Warn":
 		errorOut, warnOut, infoOut, debugOut = os.Stderr, os.Stderr, devNull, devNull
-	case "error":
+	case "Error":
 		errorOut, warnOut, infoOut, debugOut = os.Stderr, devNull, devNull, devNull
 	default:
 		panic("Not a valid log setting")
 	}
 
-	l.debug = log.New(debugOut, "[DEBUG] ", log.Ldate|log.Ltime)
-	l.info = log.New(infoOut, "[INFO]  ", log.Ldate|log.Ltime)
-	l.warn = log.New(warnOut, "[WARN]  ", log.Ldate|log.Ltime)
-	l.error = log.New(errorOut, "[ERROR] ", log.Ldate|log.Ltime)
+	l.Debug = log.New(debugOut, "[DEBUG] ", log.Ldate|log.Ltime)
+	l.Info = log.New(infoOut, "[INFO]  ", log.Ldate|log.Ltime)
+	l.Warn = log.New(warnOut, "[WARN]  ", log.Ldate|log.Ltime)
+	l.Error = log.New(errorOut, "[ERROR] ", log.Ldate|log.Ltime)
 
-	l.debug.Print("Set up logger")
+	l.Debug.Print("Set up logger")
 	return l
 }

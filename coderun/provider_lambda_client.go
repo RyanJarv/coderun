@@ -3,6 +3,8 @@ package coderun
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/RyanJarv/coderun/coderun/icebox"
+	"github.com/RyanJarv/coderun/coderun/lib"
 	"io/ioutil"
 	"log"
 	"os"
@@ -43,15 +45,15 @@ func NewCRLambda(awsConfig *aws.Config) *CRLambda {
 
 func (d *CRLambda) Setup(r *RunEnvironment) {
 	d.lambdaName = "coderun-test"
-	d.codeDir = r.CodeDir
-	d.dependsDir = r.DependsDir
-	d.ignoreFiles = r.IgnoreFiles
+	d.codeDir = r.codeDir
+	d.dependsDir = r.dependsDir
+	d.ignoreFiles = r.ignoreFiles
 
-	d.zipAndUploadCode(r.CodeDir, r.DependsDir)
+	d.zipAndUploadCode(r.codeDir, r.dependsDir)
 	d.createIamRole()
 }
 
-func (d *CRLambda) Deploy(lang string, r *RunEnvironment, p awsLambdaProviderEnv) {
+func (d *CRLambda) Deploy(lang string, r *RunEnvironment, p coderun.AwsLambdaProviderEnv) {
 	d.lambdaFunctionArn = d.getConfig("awsLambdaFunctionArn")
 
 	if d.lambdaFunctionArn != "" {
@@ -64,7 +66,7 @@ func (d *CRLambda) Deploy(lang string, r *RunEnvironment, p awsLambdaProviderEnv
 	os.Remove(d.zipFile)
 }
 
-func (d *CRLambda) Run(r *RunEnvironment, p awsLambdaProviderEnv) {
+func (d *CRLambda) Run(r *RunEnvironment, p coderun.AwsLambdaProviderEnv) {
 	resp, err := d.lambda.Invoke(&lambda.InvokeInput{
 		FunctionName: aws.String(d.lambdaName),
 		LogType:      aws.String(lambda.LogTypeTail),
@@ -86,7 +88,7 @@ func (d *CRLambda) createIamRole() string {
 		return role
 	}
 
-	d.iamRoleName = fmt.Sprintf("CodeRunLambda-%s", RandString(5))
+	d.iamRoleName = fmt.Sprintf("CodeRunLambda-%s", lib.RandString(5))
 	resp, err := d.iam.CreateRole(&iam.CreateRoleInput{
 		Description: aws.String("Create by Coderun for Lambda"),
 		RoleName:    aws.String(d.iamRoleName),
@@ -156,7 +158,7 @@ func (d *CRLambda) updateLambdaFunction() {
 }
 
 func (d *CRLambda) zipper(output string, files chan string) {
-	Logger.info.Printf("Creating zip file at %s", output)
+	Logger.Info.Printf("Creating zip file at %s", output)
 	newfile, err := os.Create(output)
 	defer newfile.Close()
 	if err != nil {
@@ -167,7 +169,7 @@ func (d *CRLambda) zipper(output string, files chan string) {
 	defer zipWriter.Close()
 
 	for file := range files {
-		Logger.debug.Printf("Zipper got file: %s", file)
+		Logger.Debug.Printf("Zipper got file: %s", file)
 		f, err := ioutil.ReadFile(file)
 		if err != nil {
 			log.Fatal(err)
@@ -179,7 +181,7 @@ func (d *CRLambda) zipper(output string, files chan string) {
 		}
 		writer, err := zipWriter.Create(file)
 		_, err = writer.Write(f)
-		Logger.debug.Printf("Zipper wrote file: %s", file)
+		Logger.Debug.Printf("Zipper wrote file: %s", file)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -190,7 +192,7 @@ func (d *CRLambda) addFileFiltered(fullpath string, f os.FileInfo, err error) er
 	relativePath := strings.TrimPrefix(fullpath, path.Clean(d.codeDir)+"/")
 	for _, ignore := range d.ignoreFiles {
 		if strings.HasPrefix(relativePath, ignore) {
-			Logger.debug.Printf("Skipping (has prefix %s): %s\n", ignore, relativePath)
+			Logger.Debug.Printf("Skipping (has prefix %s): %s\n", ignore, relativePath)
 			return nil
 		}
 	}
@@ -200,30 +202,30 @@ func (d *CRLambda) addFileFiltered(fullpath string, f os.FileInfo, err error) er
 func (d *CRLambda) addFile(fullpath string, f os.FileInfo, err error) error {
 	relativePath := strings.TrimPrefix(fullpath, path.Clean(d.codeDir)+"/")
 	if f.IsDir() == true {
-		Logger.debug.Printf("Skipping (is a directory): %s\n", relativePath)
+		Logger.Debug.Printf("Skipping (is a directory): %s\n", relativePath)
 		return nil
 	}
-	Logger.info.Printf("Found file: %s\n", relativePath)
+	Logger.Info.Printf("Found file: %s\n", relativePath)
 	d.sourceFiles <- relativePath
 	return nil
 }
 
 func (d *CRLambda) zipAndUploadCode(dir string, dependsDir string) {
-	d.zipFile = path.Join(".coderun", "lambda-"+RandString(20)+".zip")
+	d.zipFile = path.Join(".coderun", "lambda-"+lib.RandString(20)+".zip")
 
 	d.sourceFiles = make(chan string)
 	go func() {
-		Logger.debug.Printf("Zipping directory: %s", dir)
+		Logger.Debug.Printf("Zipping directory: %s", dir)
 		filepath.Walk(dir, d.addFileFiltered)
 		if dependsDir != "" {
-			Logger.debug.Printf("Zipping dependency directory: %s", dependsDir)
+			Logger.Debug.Printf("Zipping dependency directory: %s", dependsDir)
 			filepath.Walk(dependsDir, d.addFile)
 		}
 		close(d.sourceFiles)
 	}()
 	d.zipper(d.zipFile, d.sourceFiles)
 
-	Logger.info.Printf("Done zipping")
+	Logger.Info.Printf("Done zipping")
 }
 
 func (d *CRLambda) getConfig(key string) string {
@@ -238,7 +240,7 @@ func (d *CRLambda) getConfig(key string) string {
 }
 
 func (d *CRLambda) setConfig(key string, value string) {
-	Logger.info.Printf("Setting config %s to %s\n", key, value)
+	Logger.Info.Printf("Setting config %s to %s\n", key, value)
 
 	err := os.Mkdir(".coderun", 0755)
 	if err != nil && !os.IsExist(err) {
