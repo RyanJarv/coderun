@@ -4,7 +4,7 @@ Right now thinking this would be interesting to approach from the other directio
 
 I think it makes sense to approach from the parsing side of things due to the need of failing if a statement isn't picked up by our PATH/aliases/overrides/or whatever. Also I don't think you can override things like pipes and redirection operators. Either way though I believe this will be easier for me to understand from the direction of writing a parser than trying to piece together various operations with obscure shell functionality.
 
-[For now I'm using this repo for the PoC](https://github.com/RyanJarv/lsh/blob/main/README.md)
+[For now I'm using this repo for the PoC](https://github.com/RyanJarv/msh/blob/main/README.md)
 
 ## Update 4/8/2020
 After taking a break from this, mostly stuck and thinking about where I wanted to take this project next, I believe I need to take a different approach. I still want to support the same high level goals, but I think for now, this should behave more like a package manager focused on running interactive sandboxed containers on Darwin.
