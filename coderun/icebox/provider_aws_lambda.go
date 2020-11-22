@@ -1,14 +1,15 @@
 package coderun
 
 import (
+	"github.com/RyanJarv/coderun/coderun"
 	"log"
 
 	"github.com/aws/aws-sdk-go/aws"
 )
 
-type awsLambdaProviderEnv struct {
+type AwsLambdaProviderEnv struct {
 	IProviderEnv
-	CRLambda *CRLambda
+	CRLambda *coderun.CRLambda
 }
 
 func AWSLambdaProvider() *Provider {
@@ -23,7 +24,7 @@ func AWSLambdaProvider() *Provider {
 		Resources: map[string]IResource{
 			"awsLambdaPython": AWSLambdaPython(),
 		},
-		ProviderEnv: &awsLambdaProviderEnv{},
+		ProviderEnv: &AwsLambdaProviderEnv{},
 	}
 }
 func awsLambdaRegister(r *RunEnvironment) bool {
@@ -48,8 +49,8 @@ func awsLambdaSetup(p *Provider, r *RunEnvironment) IProviderEnv {
 		Region: aws.String("us-east-1"),
 	}
 
-	crLambda := NewCRLambda(awsConfig)
-	providerEnv := awsLambdaProviderEnv{
+	crLambda := coderun.NewCRLambda(awsConfig)
+	providerEnv := AwsLambdaProviderEnv{
 		CRLambda: crLambda,
 	}
 
@@ -65,7 +66,7 @@ func awsLambdaSetup(p *Provider, r *RunEnvironment) IProviderEnv {
 }
 
 func awsLambdaDeploy(provider *Provider, r *RunEnvironment, p IProviderEnv) {
-	providerEnv := p.(awsLambdaProviderEnv)
+	providerEnv := p.(AwsLambdaProviderEnv)
 
 	for _, resource := range provider.RegisteredResources {
 		if resource.(Resource).Deploy == nil {
@@ -78,7 +79,7 @@ func awsLambdaDeploy(provider *Provider, r *RunEnvironment, p IProviderEnv) {
 }
 
 func awsLambdaRun(provider *Provider, r *RunEnvironment, p IProviderEnv) {
-	providerEnv := p.(awsLambdaProviderEnv)
+	providerEnv := p.(AwsLambdaProviderEnv)
 
 	for _, resource := range provider.RegisteredResources {
 		if resource.(Resource).Run == nil {

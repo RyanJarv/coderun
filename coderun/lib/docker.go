@@ -1,9 +1,10 @@
-package coderun
+package lib
 
 import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/RyanJarv/coderun/coderun"
 	"io"
 	"io/ioutil"
 	"log"
@@ -61,13 +62,13 @@ func (d *CRDocker) DockerKillLabel(label string) {
 	args.Add("label", label)
 	resp, err := d.Client.ContainerList(context.Background(), types.ContainerListOptions{Filters: args})
 	if err != nil {
-		Logger.error.Fatal(err)
+		coderun.Logger.Error.Fatal(err)
 	}
 	timeout := time.Second * 4
 	for _, c := range resp {
-		Logger.info.Printf("Found %s matching label %s", c.ID, label)
+		coderun.Logger.Info.Printf("Found %s matching label %s", c.ID, label)
 		if err := d.stop(c.ID, timeout); err != nil {
-			Logger.info.Printf("Could not stop %s in timeout %v, killing", d.Id, timeout)
+			coderun.Logger.Info.Printf("Could not stop %s in timeout %v, killing", d.Id, timeout)
 			d.kill(c.ID)
 		}
 		d.remove(c.ID)
@@ -88,7 +89,7 @@ func (d *CRDocker) RegisterMount(localPath, dockerPath string) {
 }
 
 func (d *CRDocker) Pull(image string) {
-	Logger.info.Printf("Pulling image: %s", image)
+	coderun.Logger.Info.Printf("Pulling image: %s", image)
 	resp, err := d.Client.ImagePull(context.Background(), image, types.ImagePullOptions{})
 	if err != nil {
 		panic(err)
@@ -99,13 +100,13 @@ func (d *CRDocker) Pull(image string) {
 
 	rd.WriteTo(os.Stdout)
 
-	Logger.debug.Printf("Done pulling image: %s", image)
+	coderun.Logger.Debug.Printf("Done pulling image: %s", image)
 }
 
-func (d *CRDocker) Run(c dockerRunConfig) {
+func (d *CRDocker) Run(c coderun.DockerRunConfig) {
 	ctx := context.Background()
 
-	Logger.info.Printf("Running: %s", c.Cmd)
+	coderun.Logger.Info.Printf("Running: %s", c.Cmd)
 	config := &container.Config{Image: c.Image, Labels: map[string]string{"coderun": ""}}
 	if c.Attach {
 		config.Tty = true
@@ -129,7 +130,7 @@ func (d *CRDocker) Run(c dockerRunConfig) {
 	}
 
 	if c.Port != 0 {
-		Logger.debug.Printf("Setting port %v", c.HostPort)
+		coderun.Logger.Debug.Printf("Setting port %v", c.HostPort)
 		portBindings = nat.PortMap{port: []nat.PortBinding{{HostIP: "127.0.0.1", HostPort: strconv.Itoa(c.HostPort)}}}
 		config.ExposedPorts = nat.PortSet{
 			port: struct{}{},
@@ -142,12 +143,12 @@ func (d *CRDocker) Run(c dockerRunConfig) {
 	}
 
 	if v := c.SourceDir; v != "" {
-		Logger.debug.Printf("Sourcedir is %s", v)
-		Logger.debug.Printf("Destdir is %s", c.DestDir)
+		coderun.Logger.Debug.Printf("Sourcedir is %s", v)
+		coderun.Logger.Debug.Printf("Destdir is %s", c.DestDir)
 		hostConfig.Mounts = []mount.Mount{{Type: "bind", Source: v, Target: c.DestDir}}
 	}
 	for l, r := range d.volumes {
-		Logger.info.Printf("Attaching bind mount %v to %v", l, r)
+		coderun.Logger.Info.Printf("Attaching bind mount %v to %v", l, r)
 		hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{Type: "bind", Source: l, Target: r})
 	}
 
@@ -160,15 +161,15 @@ func (d *CRDocker) Run(c dockerRunConfig) {
 	d.Status = Created
 	d.Id = resp.ID
 
-	Logger.debug.Printf("Container ID: %s", d.Id)
+	coderun.Logger.Debug.Printf("Container ID: %s", d.Id)
 	if len(resp.Warnings) > 0 {
-		Logger.warn.Printf("Container Warnings: %s", resp.Warnings)
+		coderun.Logger.Warn.Printf("Container Warnings: %s", resp.Warnings)
 	}
 
 	var errStdout, errStdin error
 
 	if c.Attach {
-		Logger.debug.Printf("Attaching container")
+		coderun.Logger.Debug.Printf("Attaching container")
 		d.hijack, err = d.Client.ContainerAttach(ctx, d.Id, types.ContainerAttachOptions{Stream: true, Stdin: true, Stdout: true, Stderr: true})
 		if err != nil {
 			panic(err)
@@ -204,7 +205,7 @@ func (d *CRDocker) Run(c dockerRunConfig) {
 	if c.Attach {
 		_, err := d.Client.ContainerWait(ctx, d.Id)
 		if err != nil {
-			Logger.error.Fatal(err)
+			coderun.Logger.Error.Fatal(err)
 		}
 	}
 }
@@ -214,25 +215,25 @@ func (d *CRDocker) inspect() {
 	var err error
 	d.Info, err = d.Client.ContainerInspect(ctx, d.Id)
 	if err != nil {
-		Logger.error.Fatal(err)
+		coderun.Logger.Error.Fatal(err)
 	}
 }
 
 func (d *CRDocker) Teardown(timeout time.Duration) {
 	if d == nil {
-		Logger.warn.Printf("CRDocker instance was nil")
+		coderun.Logger.Warn.Printf("CRDocker instance was nil")
 		return
 	}
 	if d.hijack != (types.HijackedResponse{}) {
 		d.hijack.Close()
 	}
 	if d.Status == Destroyed || d.Status == Removing {
-		Logger.debug.Printf("Container is already in %s state, skipping additional teardown", d.Status)
+		coderun.Logger.Debug.Printf("Container is already in %s state, skipping additional teardown", d.Status)
 		return
 	}
 	d.Status = Removing
 	if err := d.Stop(timeout); err != nil {
-		Logger.info.Printf("Could not stop %s in timeout %v, killing", d.Id, timeout)
+		coderun.Logger.Info.Printf("Could not stop %s in timeout %v, killing", d.Id, timeout)
 		d.Kill()
 	}
 	d.Remove()
@@ -240,9 +241,9 @@ func (d *CRDocker) Teardown(timeout time.Duration) {
 }
 
 func (d *CRDocker) kill(id string) {
-	Logger.info.Printf("Killing container %s", id)
+	coderun.Logger.Info.Printf("Killing container %s", id)
 	if err := d.Client.ContainerKill(context.Background(), id, "SIGTERM"); err != nil {
-		Logger.error.Fatal(err)
+		coderun.Logger.Error.Fatal(err)
 	}
 }
 
@@ -251,7 +252,7 @@ func (d *CRDocker) Kill() {
 }
 
 func (d *CRDocker) stop(id string, timeout time.Duration) error {
-	Logger.info.Printf("Stopping container %s", id)
+	coderun.Logger.Info.Printf("Stopping container %s", id)
 	if err := d.Client.ContainerStop(context.Background(), id, &timeout); err != nil {
 		return err
 	}
@@ -263,9 +264,9 @@ func (d *CRDocker) Stop(timeout time.Duration) error {
 }
 
 func (d *CRDocker) remove(id string) {
-	Logger.info.Printf("Removing container %s", id)
+	coderun.Logger.Info.Printf("Removing container %s", id)
 	if err := d.Client.ContainerRemove(context.Background(), id, types.ContainerRemoveOptions{}); err != nil {
-		Logger.error.Fatal(err)
+		coderun.Logger.Error.Fatal(err)
 	}
 }
 

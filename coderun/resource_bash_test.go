@@ -42,7 +42,7 @@ func (suite *BashSuite) TestSetup() {
 }
 
 func (suite *BashSuite) TestRun() {
-	suite.CRDockerMock.On("Run", mock.AnythingOfType(fmt.Sprintf("%T", dockerRunConfig{})))
+	suite.CRDockerMock.On("Run", mock.AnythingOfType(fmt.Sprintf("%T", DockerRunConfig{})))
 	suite.Resource.Run(&StepCallback{}, &StepCallback{})
 	suite.CRDockerMock.AssertExpectations(suite.T())
 }

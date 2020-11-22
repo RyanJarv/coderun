@@ -7,7 +7,7 @@ import (
 	"github.com/docker/docker/api/types/mount"
 )
 
-type dockerRunConfig struct {
+type DockerRunConfig struct {
 	Image       string
 	Port        int
 	HostPort    int
@@ -25,7 +25,7 @@ type dockerRunConfig struct {
 
 type ICRDocker interface {
 	Pull(string)
-	Run(dockerRunConfig)
+	Run(DockerRunConfig)
 	RegisterMount(string, string)
 	newImageName() string
 	getOrBuildImage(string, ...[]string) string

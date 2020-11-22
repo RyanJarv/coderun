@@ -1,6 +1,7 @@
-package coderun
+package lib
 
 import (
+	"github.com/RyanJarv/coderun/coderun"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,7 +9,7 @@ import (
 )
 
 func TestMatchCommandOrExt(t *testing.T) {
-	Logger = SetupLogger("error")
+	coderun.Logger = coderun.SetupLogger("error")
 	assert := assert.New(t)
 	assert.True(MatchCommandOrExt([]string{"test.sh"}, "bash", ".sh"))
 	assert.True(MatchCommandOrExt([]string{"test.sh", "-r", "fsic"}, "bash", ".sh"))

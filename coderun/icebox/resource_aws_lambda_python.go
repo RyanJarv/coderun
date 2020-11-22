@@ -15,15 +15,15 @@ func awsLambdaPythonRegister(r *RunEnvironment, p IProviderEnv) bool {
 
 func awsLambdaPythonSetup(r *RunEnvironment, p IProviderEnv) {
 	Logger.debug.Printf("r.DependsDir is %s", r.DependsDir)
-	p.(awsLambdaProviderEnv).CRLambda.Setup(r)
+	p.(AwsLambdaProviderEnv).CRLambda.Setup(r)
 }
 
 func awsLambdaPythonDeploy(r *RunEnvironment, p IProviderEnv) {
-	pEnv := p.(awsLambdaProviderEnv)
+	pEnv := p.(AwsLambdaProviderEnv)
 	pEnv.CRLambda.Deploy("python3.6", r, pEnv)
 }
 
 func awsLambdaPythonRun(r *RunEnvironment, p IProviderEnv) {
-	providerEnv := p.(awsLambdaProviderEnv)
+	providerEnv := p.(AwsLambdaProviderEnv)
 	providerEnv.CRLambda.Run(r, providerEnv)
 }

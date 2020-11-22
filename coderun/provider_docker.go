@@ -1,10 +1,9 @@
 package coderun
 
+import "github.com/RyanJarv/coderun/coderun/lib"
+
 type IDockerResource interface {
 	IResource
-	Setup(*StepCallback, *StepCallback)
-	Run(*StepCallback, *StepCallback)
-	RegisterMount(string, string)
 }
 
 type DockerResources map[string]IResource
@@ -22,7 +21,7 @@ type DockerProvider struct {
 	IProvider
 	resources           map[string]IDockerResource
 	registeredResources map[string]IDockerResource
-	buildkit            *CRDocker
+	buildkit            *lib.CRDocker
 }
 
 func (p *DockerProvider) Name() string {
@@ -34,7 +33,7 @@ func (p *DockerProvider) Register(e IRunEnvironment) bool {
 	e.Registry().AddAt(TeardownStep+10, &StepCallback{Step: "Teardown", Provider: p, Callback: p.Teardown})
 	for name, r := range p.resources {
 		if r.Register(e, p) {
-			Logger.info.Printf("Registering resource %s", name)
+			Logger.Info.Printf("Registering resource %s", name)
 			p.registeredResources[name] = r
 			registered = true
 		}
@@ -48,8 +47,8 @@ func (p *DockerProvider) Register(e IRunEnvironment) bool {
 }
 
 func (p *DockerProvider) Setup(callback *StepCallback, currentStep *StepCallback) {
-	p.buildkit = NewCRDocker()
-	p.buildkit.Run(dockerRunConfig{
+	p.buildkit = lib.NewCRDocker()
+	p.buildkit.Run(DockerRunConfig{
 		Image:      "tonistiigi/buildkit",
 		Attach:     false,
 		Privileged: true,
@@ -58,5 +57,5 @@ func (p *DockerProvider) Setup(callback *StepCallback, currentStep *StepCallback
 }
 
 func (p *DockerProvider) Teardown(callback *StepCallback, currentStep *StepCallback) {
-	NewCRDocker().DockerKillLabel("coderun")
+	lib.NewCRDocker().DockerKillLabel("coderun")
 }

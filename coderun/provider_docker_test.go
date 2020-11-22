@@ -15,7 +15,7 @@ func (m *CRDockerMock) Pull(image string) {
 	m.Called(image)
 }
 
-func (m *CRDockerMock) Run(c dockerRunConfig) {
+func (m *CRDockerMock) Run(c DockerRunConfig) {
 	m.Called(c)
 }
 
