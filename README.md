@@ -1,4 +1,12 @@
 [![Build Status](https://travis-ci.org/RyanJarv/coderun.svg?branch=master)](https://travis-ci.org/RyanJarv/coderun)
+## Update 12/22/2020
+
+Debating whether to use this code or not still, so ended up cleaning much of it up. Right now this should work:
+
+> cd test; go run ../main.go -- ./test.sh
+
+I'm thinking tying into the native docker ECS context api's might make sense here, needs more investigation. May come back to this later and mess around with a different approach for a bit.
+
 ## Update 11/4/2020
 Right now thinking this would be interesting to approach from the other direction, going back to a parser in golang, but focusing on integrating it with state machine. Shell's tend to get used for data processing (so I'm told), so having a shell directly on AWS integrating natively with other services seems like it may be useful to someone (maybe even me if I find a job sometime soon). I think I'll start from scratch to get a PoC working here first to further develop the idea, this code however may be useful once I have a better idea where I'm going with this.
 
