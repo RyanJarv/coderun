@@ -30,13 +30,7 @@ NOTE: This is just an initial concept and will mostly likely not work for you cu
 ### Current
 * Docker
   * Bash
-* Mount (Prompts on shared file access)
-  * AWS Credentials
-* Snitch (Prompts on new connection attempt)
-  * Docker
   
-
-
 ### IceBox
 Moved these to ./coderun/icebox until the code is more stable
 * Lambda
@@ -46,6 +40,10 @@ Moved these to ./coderun/icebox until the code is more stable
   * NodeJS
   * Ruby
   * Rails
+* Mount (Prompts on shared file access)
+  * AWS Credentials
+* Snitch (Prompts on new connection attempt)
+  * Docker
 
 ### Bash/Mount/Dockersnitch example
 ```

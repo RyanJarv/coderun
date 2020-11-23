@@ -7,12 +7,12 @@ import (
 	"github.com/chzyer/readline"
 )
 
-func NewBashResource(r IRunEnvironment) *BashResource {
+func NewBashResource(r IRunEnvironment) IProvider {
 	return &BashResource{}
 }
 
 type BashResource struct {
-	IResource
+	IProvider
 	bash ICRDocker
 	env  IRunEnvironment
 }
@@ -23,24 +23,24 @@ func (r *BashResource) Name() string {
 
 func (r *BashResource) Register(e IRunEnvironment, p IProvider) bool {
 	r.env = e
-	r.bash = lib.NewCRDocker()
+	r.bash = NewCRDocker()
 	if s := e.Shell(); s != nil {
 		s.AddCompleters(readline.PcItem("bash"))
 	}
 	if lib.MatchCommandOrExt(e.Cmd(), "bash", ".sh") {
-		e.Registry().AddAt(SetupStep, &StepCallback{Step: "Setup", Provider: p, Resource: r, Callback: r.Setup})
-		e.Registry().AddAt(SetupStep, &StepCallback{Step: "Run", Provider: p, Resource: r, Callback: r.Run})
-		e.Registry().AddAt(TeardownStep, &StepCallback{Step: "Teardown", Provider: p, Resource: r, Callback: r.Teardown})
+		e.Registry().AddAt(SetupStep, &StepCallback{Step: "Setup", Provider: p, Callback: r.Setup})
+		e.Registry().AddAt(SetupStep, &StepCallback{Step: "Run", Provider: p, Callback: r.Run})
+		e.Registry().AddAt(TeardownStep, &StepCallback{Step: "Teardown", Provider: p, Callback: r.Teardown})
 		return true
 	} else {
 		return false
 	}
 }
 
-func (r *BashResource) RegisterMount(local string, remote string) {
-	r.bash.RegisterMount(local, remote)
-}
-
+//func (r *BashResource) RegisterMount(local string, remote string) {
+//	r.bash.RegisterMount(local, remote)
+//}
+//
 func (r *BashResource) Setup(callback *StepCallback, currentStep *StepCallback) {
 	r.bash.Pull("bash")
 }
