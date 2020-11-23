@@ -1,10 +1,11 @@
-package lib
+package coderun
 
 import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/RyanJarv/coderun/coderun"
+	"github.com/RyanJarv/coderun/coderun/lib"
+	L "github.com/RyanJarv/coderun/coderun/logger"
 	"io"
 	"io/ioutil"
 	"log"
@@ -62,13 +63,13 @@ func (d *CRDocker) DockerKillLabel(label string) {
 	args.Add("label", label)
 	resp, err := d.Client.ContainerList(context.Background(), types.ContainerListOptions{Filters: args})
 	if err != nil {
-		coderun.Logger.Error.Fatal(err)
+		L.Error.Fatal(err)
 	}
 	timeout := time.Second * 4
 	for _, c := range resp {
-		coderun.Logger.Info.Printf("Found %s matching label %s", c.ID, label)
+		L.Info.Printf("Found %s matching label %s", c.ID, label)
 		if err := d.stop(c.ID, timeout); err != nil {
-			coderun.Logger.Info.Printf("Could not stop %s in timeout %v, killing", d.Id, timeout)
+			L.Info.Printf("Could not stop %s in timeout %v, killing", d.Id, timeout)
 			d.kill(c.ID)
 		}
 		d.remove(c.ID)
@@ -89,7 +90,7 @@ func (d *CRDocker) RegisterMount(localPath, dockerPath string) {
 }
 
 func (d *CRDocker) Pull(image string) {
-	coderun.Logger.Info.Printf("Pulling image: %s", image)
+	L.Info.Printf("Pulling image: %s", image)
 	resp, err := d.Client.ImagePull(context.Background(), image, types.ImagePullOptions{})
 	if err != nil {
 		panic(err)
@@ -100,13 +101,13 @@ func (d *CRDocker) Pull(image string) {
 
 	rd.WriteTo(os.Stdout)
 
-	coderun.Logger.Debug.Printf("Done pulling image: %s", image)
+	L.Debug.Printf("Done pulling image: %s", image)
 }
 
-func (d *CRDocker) Run(c coderun.DockerRunConfig) {
+func (d *CRDocker) Run(c DockerRunConfig) {
 	ctx := context.Background()
 
-	coderun.Logger.Info.Printf("Running: %s", c.Cmd)
+	L.Info.Printf("Running: %s", c.Cmd)
 	config := &container.Config{Image: c.Image, Labels: map[string]string{"coderun": ""}}
 	if c.Attach {
 		config.Tty = true
@@ -130,7 +131,7 @@ func (d *CRDocker) Run(c coderun.DockerRunConfig) {
 	}
 
 	if c.Port != 0 {
-		coderun.Logger.Debug.Printf("Setting port %v", c.HostPort)
+		L.Debug.Printf("Setting port %v", c.HostPort)
 		portBindings = nat.PortMap{port: []nat.PortBinding{{HostIP: "127.0.0.1", HostPort: strconv.Itoa(c.HostPort)}}}
 		config.ExposedPorts = nat.PortSet{
 			port: struct{}{},
@@ -143,12 +144,12 @@ func (d *CRDocker) Run(c coderun.DockerRunConfig) {
 	}
 
 	if v := c.SourceDir; v != "" {
-		coderun.Logger.Debug.Printf("Sourcedir is %s", v)
-		coderun.Logger.Debug.Printf("Destdir is %s", c.DestDir)
+		L.Debug.Printf("Sourcedir is %s", v)
+		L.Debug.Printf("Destdir is %s", c.DestDir)
 		hostConfig.Mounts = []mount.Mount{{Type: "bind", Source: v, Target: c.DestDir}}
 	}
 	for l, r := range d.volumes {
-		coderun.Logger.Info.Printf("Attaching bind mount %v to %v", l, r)
+		L.Info.Printf("Attaching bind mount %v to %v", l, r)
 		hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{Type: "bind", Source: l, Target: r})
 	}
 
@@ -161,15 +162,15 @@ func (d *CRDocker) Run(c coderun.DockerRunConfig) {
 	d.Status = Created
 	d.Id = resp.ID
 
-	coderun.Logger.Debug.Printf("Container ID: %s", d.Id)
+	L.Debug.Printf("Container ID: %s", d.Id)
 	if len(resp.Warnings) > 0 {
-		coderun.Logger.Warn.Printf("Container Warnings: %s", resp.Warnings)
+		L.Error.Printf("Container Warnings: %s", resp.Warnings)
 	}
 
 	var errStdout, errStdin error
 
 	if c.Attach {
-		coderun.Logger.Debug.Printf("Attaching container")
+		L.Debug.Printf("Attaching container")
 		d.hijack, err = d.Client.ContainerAttach(ctx, d.Id, types.ContainerAttachOptions{Stream: true, Stdin: true, Stdout: true, Stderr: true})
 		if err != nil {
 			panic(err)
@@ -205,7 +206,7 @@ func (d *CRDocker) Run(c coderun.DockerRunConfig) {
 	if c.Attach {
 		_, err := d.Client.ContainerWait(ctx, d.Id)
 		if err != nil {
-			coderun.Logger.Error.Fatal(err)
+			L.Error.Fatal(err)
 		}
 	}
 }
@@ -215,25 +216,25 @@ func (d *CRDocker) inspect() {
 	var err error
 	d.Info, err = d.Client.ContainerInspect(ctx, d.Id)
 	if err != nil {
-		coderun.Logger.Error.Fatal(err)
+		L.Error.Fatal(err)
 	}
 }
 
 func (d *CRDocker) Teardown(timeout time.Duration) {
 	if d == nil {
-		coderun.Logger.Warn.Printf("CRDocker instance was nil")
+		L.Error.Printf("CRDocker instance was nil")
 		return
 	}
 	if d.hijack != (types.HijackedResponse{}) {
 		d.hijack.Close()
 	}
 	if d.Status == Destroyed || d.Status == Removing {
-		coderun.Logger.Debug.Printf("Container is already in %s state, skipping additional teardown", d.Status)
+		L.Debug.Printf("Container is already in %s state, skipping additional teardown", d.Status)
 		return
 	}
 	d.Status = Removing
 	if err := d.Stop(timeout); err != nil {
-		coderun.Logger.Info.Printf("Could not stop %s in timeout %v, killing", d.Id, timeout)
+		L.Info.Printf("Could not stop %s in timeout %v, killing", d.Id, timeout)
 		d.Kill()
 	}
 	d.Remove()
@@ -241,9 +242,9 @@ func (d *CRDocker) Teardown(timeout time.Duration) {
 }
 
 func (d *CRDocker) kill(id string) {
-	coderun.Logger.Info.Printf("Killing container %s", id)
+	L.Info.Printf("Killing container %s", id)
 	if err := d.Client.ContainerKill(context.Background(), id, "SIGTERM"); err != nil {
-		coderun.Logger.Error.Fatal(err)
+		L.Error.Fatal(err)
 	}
 }
 
@@ -252,7 +253,7 @@ func (d *CRDocker) Kill() {
 }
 
 func (d *CRDocker) stop(id string, timeout time.Duration) error {
-	coderun.Logger.Info.Printf("Stopping container %s", id)
+	L.Info.Printf("Stopping container %s", id)
 	if err := d.Client.ContainerStop(context.Background(), id, &timeout); err != nil {
 		return err
 	}
@@ -264,9 +265,9 @@ func (d *CRDocker) Stop(timeout time.Duration) error {
 }
 
 func (d *CRDocker) remove(id string) {
-	coderun.Logger.Info.Printf("Removing container %s", id)
+	L.Info.Printf("Removing container %s", id)
 	if err := d.Client.ContainerRemove(context.Background(), id, types.ContainerRemoveOptions{}); err != nil {
-		coderun.Logger.Error.Fatal(err)
+		L.Error.Fatal(err)
 	}
 }
 
@@ -278,9 +279,9 @@ func (d *CRDocker) buildImageStep(source string, args ...string) string {
 	var image = d.newImageName()
 	var preimage = d.newImageName()
 	//append so go will let us pass to a function with a single vervadic parameter
-	Exec(append([]string{"/usr/local/bin/docker", "run", "-t", "--name", preimage, "-v", fmt.Sprintf("%s:/usr/local/myapp", Cwd()), "-w", "/usr/local/myapp", source}, args...)...)
-	Exec("/usr/local/bin/docker", "commit", preimage, image)
-	Exec("/usr/local/bin/docker", "rm", preimage)
+	lib.Exec(append([]string{"/usr/local/bin/docker", "run", "-t", "--name", preimage, "-v", fmt.Sprintf("%s:/usr/local/myapp", lib.Cwd()), "-w", "/usr/local/myapp", source}, args...)...)
+	lib.Exec("/usr/local/bin/docker", "commit", preimage, image)
+	lib.Exec("/usr/local/bin/docker", "rm", preimage)
 	return image
 }
 
@@ -295,7 +296,7 @@ func (d *CRDocker) getImageName() string {
 }
 
 func (d *CRDocker) setImageName(image string) {
-	CreateCodeRunDir()
+	lib.CreateCodeRunDir()
 	err := ioutil.WriteFile(".coderun/dockerimage", []byte(image), 0644)
 	if err != nil {
 		log.Fatal(err)

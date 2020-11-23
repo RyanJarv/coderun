@@ -27,7 +27,7 @@ func (m *CRDockerMock) Teardown(timeout time.Duration) {
 	m.Called(timeout)
 }
 
-func (m *CRDockerMock) getImageName() string {
+func (m *CRDockerMock) GetImageName() string {
 	return "mock"
 }
 
@@ -35,10 +35,10 @@ func (m *CRDockerMock) setImageName(name string) string {
 	return "mock"
 }
 
-func (m *CRDockerMock) getOrBuildImage(source string, cmds ...[]string) string {
+func (m *CRDockerMock) GetOrBuildImage(source string, cmds ...[]string) string {
 	return "mock"
 }
 
-func (m *CRDockerMock) newImageName() string {
+func (m *CRDockerMock) NewImageName() string {
 	return "mock"
 }

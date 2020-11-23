@@ -1,54 +1,45 @@
 package coderun
 
-import "github.com/RyanJarv/coderun/coderun/lib"
-
-type IDockerResource interface {
-	IResource
-}
-
-type DockerResources map[string]IResource
+import (
+	L "github.com/RyanJarv/coderun/coderun/logger"
+)
 
 func NewDockerProvider(r IRunEnvironment) IProvider {
 	return &DockerProvider{
-		resources: map[string]IDockerResource{
+		resources: map[string]IProvider{
 			"bash": NewBashResource(r),
 		},
-		registeredResources: map[string]IDockerResource{},
+		registeredResources: map[string]IProvider{},
 	}
 }
 
 type DockerProvider struct {
 	IProvider
-	resources           map[string]IDockerResource
-	registeredResources map[string]IDockerResource
-	buildkit            *lib.CRDocker
+	resources           map[string]IProvider
+	registeredResources map[string]IProvider
+	buildkit            *CRDocker
 }
 
-func (p *DockerProvider) Name() string {
+func (d *DockerProvider) Name() string {
 	return "docker"
 }
 
-func (p *DockerProvider) Register(e IRunEnvironment) bool {
+func (d *DockerProvider) Register(e IRunEnvironment, p IProvider) bool {
 	registered := false
-	e.Registry().AddAt(TeardownStep+10, &StepCallback{Step: "Teardown", Provider: p, Callback: p.Teardown})
-	for name, r := range p.resources {
-		if r.Register(e, p) {
-			Logger.Info.Printf("Registering resource %s", name)
-			p.registeredResources[name] = r
+	e.Registry().AddAt(TeardownStep+10, &StepCallback{Step: "Teardown", Provider: d, Callback: d.Teardown})
+	for name, r := range d.resources {
+		if r.Register(e, d) {
+			L.Info.Printf("Registering resource %s", name)
+			d.registeredResources[name] = r
 			registered = true
 		}
-	}
-	if registered == true {
-		// This can be removed when buildkit get's merged into docker
-		//(*p.env).Registry.AddAt(SetupStep-10, &StepCallback{Step: "Setup", Provider: p, Callback: p.Setup})
-		//(*p.env).Registry.AddAt(TeardownStep, &StepCallback{Step: "Teardown", Provider: p, Callback: p.Teardown})
 	}
 	return registered
 }
 
-func (p *DockerProvider) Setup(callback *StepCallback, currentStep *StepCallback) {
-	p.buildkit = lib.NewCRDocker()
-	p.buildkit.Run(DockerRunConfig{
+func (d *DockerProvider) Setup(callback *StepCallback, currentStep *StepCallback) {
+	d.buildkit = NewCRDocker()
+	d.buildkit.Run(DockerRunConfig{
 		Image:      "tonistiigi/buildkit",
 		Attach:     false,
 		Privileged: true,
@@ -56,6 +47,6 @@ func (p *DockerProvider) Setup(callback *StepCallback, currentStep *StepCallback
 	})
 }
 
-func (p *DockerProvider) Teardown(callback *StepCallback, currentStep *StepCallback) {
-	lib.NewCRDocker().DockerKillLabel("coderun")
+func (d *DockerProvider) Teardown(callback *StepCallback, currentStep *StepCallback) {
+	NewCRDocker().DockerKillLabel("coderun")
 }
